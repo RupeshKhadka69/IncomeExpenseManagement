@@ -3,11 +3,11 @@ class ApiError extends Error {
     statuscode :number;
     data: any;
     success: boolean;
-    errors: any[];
+    errors: string[];
     constructor(
         statuscode:number,
         message="something went wrong",
-        errors = [],
+        errors: string[] = [],
         stack= ""
     ){
         super(message)

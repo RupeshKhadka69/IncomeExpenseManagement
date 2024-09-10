@@ -15,7 +15,7 @@ const TranscationSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true },
     type: { type: String, enum: ["income", "expense"], required: true },
-    category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    category: { type: String, required: true },
     date: { type: Date, required: true },
     description: { type: String },
     isRecurring: { type: Boolean, default: false },

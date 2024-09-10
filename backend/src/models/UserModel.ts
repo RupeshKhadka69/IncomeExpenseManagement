@@ -1,8 +1,9 @@
-import mongoose, { Document, Schema, Model } from "mongoose";
+import mongoose, { Document, Schema, Model, Mongoose } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
 interface IUser extends Document {
+  _id: mongoose.Types.ObjectId,
   username: string;
   email: string;
   password: string;
