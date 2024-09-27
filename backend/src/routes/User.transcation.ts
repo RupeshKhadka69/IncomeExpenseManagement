@@ -3,7 +3,7 @@ import {
   createExpenseTransaction,
   updateExpenseTransaction,
   deleteExpenseTransaction,
-} from "../controller/Transaction.Controller";
+} from "../controller/ExpenseTransaction.Controller";
 import auth from "..//middleware/auth.middlerware";
 
 const router = Router();

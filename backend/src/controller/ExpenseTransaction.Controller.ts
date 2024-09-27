@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
-import Transaction from "../models/transaction";
+import Transaction from "../models/Transaction";
 import { IUser } from "../models/UserModel";
 import { ApiResponse } from "../utils/ApiResponse";
 import { validateTranscation } from "../utils/ValidateTransaction";
@@ -17,7 +17,6 @@ const createExpenseTransaction = asyncHandler(
     }
 
     const validateResult = validateTranscation(req.body);
-     console.log("validate",validateResult.errors.join(","))
     if (!validateResult.isValid) {
       throw new ApiError(400, "Validation failed", validateResult.errors);
     }
