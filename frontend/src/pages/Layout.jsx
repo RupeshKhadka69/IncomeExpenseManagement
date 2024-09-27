@@ -5,6 +5,8 @@ import Sidebar from "./Sidebar";
 import Home from "../pages/Home";
 import About from "../pages/About";
 import Contact from "../pages/Contact";
+import ExpenseDetail from "../components/ExpenseDetail";
+import AddExpense from "../components/AddExpense";
 // import { SidebarContext } from "../context/SidebarContext";
 
 const Layout = () => {
@@ -29,8 +31,11 @@ const Layout = () => {
         <div className="content">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/expense" element={<ExpenseDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/add-expense" element={<AddExpense />} />
+
             {/* Add more routes as needed */}
           </Routes>
         </div>

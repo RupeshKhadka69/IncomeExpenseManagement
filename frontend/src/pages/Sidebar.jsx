@@ -10,6 +10,9 @@ const Sidebar = () => {
             <Link to="/" className="block p-2 bg-slate-400 w-full hover:bg-slate-500">Home</Link>
           </li>
           <li className="w-full">
+            <Link to="/expense" className="block p-2 bg-slate-400 w-full hover:bg-slate-500">Expense</Link>
+          </li>
+          <li className="w-full">
             <Link to="/about" className="block p-2 bg-slate-400 w-full hover:bg-slate-500">About</Link>
           </li>
           <li className="w-full">
