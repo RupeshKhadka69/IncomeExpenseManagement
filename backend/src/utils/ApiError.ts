@@ -5,7 +5,7 @@ class ApiError extends Error {
     success: boolean;
     errors: string[];
     constructor(
-        statuscode:number,
+        statuscode= 401,
         message="something went wrong",
         errors: string[] = [],
         stack= ""

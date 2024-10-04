@@ -33,6 +33,6 @@ router.patch(
   upload.single("profile_picture"),
   updateProfilePicture
 );
-router.get("/user", auth, getUserMe);
+router.get("/me", auth, getUserMe);
 router.post("/refresh-token", auth, refreshAccessToken);
 export default router;
