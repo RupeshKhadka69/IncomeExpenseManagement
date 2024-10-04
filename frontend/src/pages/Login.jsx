@@ -35,24 +35,23 @@ const Login = () => {
     try {
       const response = await AdminService.login({ email, password });
   
-      console.log("Response object:", response.data.jwtToken      ); // Check if response is actually returned
+      console.log("Response:", response);
   
-   
+      if (response?.statuscode === 200) {
+        const { user, jwtToken } = response.data;
   
-        if (response.statuscode === 200) {
-        
-          let payloadData = response.data.jwtToken
+        // Store the entire user object and token in localStorage
+        localStorage.setItem("adminInfo", JSON.stringify({ user, token: jwtToken }));
   
-          localStorage.setItem("adminInfo", JSON.stringify(response.data.jwtToken));
+        // Update the context with user information
+        dispatch({
+          type: "USER_LOGIN",
+          payload: { user, token: jwtToken },
+        });
   
-          dispatch({
-            type: "USER_LOGIN",
-            payload: payloadData,
-          });
-  
-          navigate("/");
-        } 
-      else {
+        // Redirect to home page
+        navigate("/");
+      } else {
         console.error("Unexpected response format:", response);
         alert("An error occurred. Please try again later.");
       }
@@ -63,6 +62,7 @@ const Login = () => {
       setLoading(false);
     }
   };
+ 
   
 
   return (

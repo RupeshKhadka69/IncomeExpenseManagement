@@ -6,77 +6,63 @@ const configureAxios = () => {
     withCredentials: true,
   });
 
-  let isRefreshing = false;
-  let failedQueue = [];
-
-  const processQueue = (error, token = null) => {
-    failedQueue.forEach(prom => {
-      if (error) {
-        prom.reject(error);
-      } else {
-        prom.resolve(token);
-      }
-    });
-    failedQueue = [];
+  const errorHandler = (error) => {
+    console.log("error",error)
+    if (
+      error?.response?.status === 401 &&
+      window.location.pathname !== "/login/"
+    ) {
+      // notifyError(error ? error.response?.data?.message : error.message);
+      setTimeout(() => {
+        // const language = localStorage.getItem("lang");
+        // const cards = localStorage.getItem("card");
+        // const officeDetails = localStorage.getItem("off_det");
+        // const email = localStorage.getItem("email");
+        localStorage.clear();
+        // localStorage.setItem("lang", language);
+        // localStorage.setItem("card", cards);
+        // localStorage.setItem("off_det", officeDetails);
+        // localStorage.setItem("email", email);
+        window.location = "/login/";
+      }, 3000);
+    }
+    return Promise.reject(error);
   };
-
+  // checking response after request
   instance.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-      const originalRequest = error.config;
-
-      if (error.response.status === 401 && !originalRequest._retry) {
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            failedQueue.push({resolve, reject});
-          }).then(token => {
-            originalRequest.headers['Authorization'] = 'Bearer ' + token;
-            return instance(originalRequest);
-          }).catch(err => {
-            return Promise.reject(err);
-          });
-        }
-
-        originalRequest._retry = true;
-        isRefreshing = true;
-
-        return new Promise((resolve, reject) => {
-          instance.post('/user/refresh-token')
-            .then(({data}) => {
-              const newToken = data.jwtToken;  // Adjust this based on your API response
-              instance.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
-              originalRequest.headers['Authorization'] = 'Bearer ' + newToken;
-              processQueue(null, newToken);
-              resolve(instance(originalRequest));
-            })
-            .catch((err) => {
-              processQueue(err, null);
-              reject(err);
-            })
-            .finally(() => {
-              isRefreshing = false;
-            });
-        });
-      }
-
-      if (error.response.status === 401 && window.location.pathname !== "/login/") {
-        setTimeout(() => {
-          window.location = "/login/";
-        }, 3000);
-      }
-
-      return Promise.reject(error);
+    (response) => {
+      return response;
+    },
+    (error) => {
+      return errorHandler(error);
     }
   );
 
+  // handling response data
   const responseBody = (response) => (response && response.data) || null;
 
+
+  // different types of request handling
   const requests = {
-    get: (url, params, headers) => instance.get(url, { params, headers }).then(responseBody),
-    post: (url, body, headers) => instance.post(url, body, { headers }).then(responseBody),
-    put: (url, body, headers) => instance.put(url, body, { headers }).then(responseBody),
-    patch: (url, body, headers) => instance.patch(url, body, { headers }).then(responseBody),
-    delete: (url, params, headers) => instance.delete(url, { params, headers }).then(responseBody),
+    get: (url, body, headers) => {
+      return instance.get(url, body, headers).then(responseBody);
+    },
+
+    post: (url, body, headers) => {
+      return instance.post(url, body, headers).then(responseBody);
+    },
+
+    put: (url, body, headers) => {
+      return instance.put(url, body, headers).then(responseBody);
+    },
+
+    patch: (url, body, headers) => {
+      return instance.patch(url, body, headers).then(responseBody);
+    },
+
+    delete: (url, body, headers) => {
+      return instance.delete(url, body, headers).then(responseBody);
+    },
   };
 
   return requests;

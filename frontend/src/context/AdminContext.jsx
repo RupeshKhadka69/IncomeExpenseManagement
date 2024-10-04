@@ -6,17 +6,36 @@ const initialState = {
     adminInfo: JSON.parse(localStorage.getItem("adminInfo")) || null,
   };
 
+// function reducer(state, action) {
+//   const resData = action.payload;
+//   switch (action.type) {
+//     case "USER_LOGIN":
+//       return {
+//         ...state,
+//         adminInfo: resData.jwtToken,
+//       };
+
+//       case "USER_LOGOUT":
+//         return initialState;
+
+//     default:
+//       return state;
+//   }
+// }
 function reducer(state, action) {
-  const resData = action.payload;
   switch (action.type) {
     case "USER_LOGIN":
       return {
         ...state,
-        adminInfo: resData.jwtToken,
+        adminInfo: action.payload,
       };
 
-      case "USER_LOGOUT":
-        return initialState;
+    case "USER_LOGOUT":
+      localStorage.removeItem("adminInfo");
+      return {
+        ...state,
+        adminInfo: null,
+      };
 
     default:
       return state;
