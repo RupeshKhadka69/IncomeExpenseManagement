@@ -17,7 +17,8 @@ const createIncomeTransaction = asyncHandler(
 
     const validateResult = validateTranscation(req.body);
     if (!validateResult.isValid) {
-      throw new ApiError(400, "Validation failed", validateResult.errors);
+      return res.status(401).json(new ApiError(401, validateResult.errors));
+
     }
 
     const {

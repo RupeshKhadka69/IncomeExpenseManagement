@@ -9,11 +9,10 @@ interface AuthRequest extends Request {
 }
 
 const auth = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
     const token = req.cookies?.jwtToken || req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return res.status(401).json(new ApiError(401, "Unauthorized user or expired token"));
+      res.status(401).json(new ApiError(401, "Unauthorized user or expired token"));
     }
 
     const decodedToken: any = jwt.verify(
@@ -24,14 +23,13 @@ const auth = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunc
     const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
 
     if (!user) {
-      return next(new ApiError(401, "Invalid token or user not found"));
+           res.status(401).json(new ApiError(401, "Unauthorized user or expired token"));
+               return;
     }
 
     req.user = user;
     next();
-  } catch (error: any) {
-    next(new ApiError(401, error?.message || "Invalid access token"));
-  }
+  
 });
 
 export default auth;

@@ -5,24 +5,25 @@ import { IUser } from "../models/UserModel";
 import { ApiResponse } from "../utils/ApiResponse";
 import { validateTranscation } from "../utils/ValidateTransaction";
 import { ApiError } from "../utils/ApiError";
+
 interface AuthRequest extends Request {
   user?: IUser;
 }
 
 const createExpenseTransaction = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-
     if (!req.user) {
       return res.status(401).json(new ApiError(401, "Unauthorized access"));
     }
 
     const validateResult = validateTranscation(req.body);
     if (!validateResult.isValid) {
-      throw new ApiError(400, "Validation failed", validateResult.errors);
+      return res.status(401).json(new ApiError(401, validateResult.errors));
     }
 
     const {
       amount,
+      name,
       category,
       date,
       description,
@@ -33,6 +34,7 @@ const createExpenseTransaction = asyncHandler(
 
     const newTransaction = new Transaction({
       user: req.user._id,
+      name,
       amount,
       type: "expense",
       category,
@@ -42,7 +44,6 @@ const createExpenseTransaction = asyncHandler(
       recurrenceInterval,
       recurrenceStartDate,
     });
-
 
     const savedTranscation = await newTransaction.save();
 
@@ -67,7 +68,7 @@ const updateExpenseTransaction = asyncHandler(
         .status(401)
         .json(new ApiError(401, validResult.errors.join(",")));
     }
-    const { id } = req.params;
+    const { id } = req.query;
     if (!id) {
       return res
         .status(401)
@@ -75,6 +76,7 @@ const updateExpenseTransaction = asyncHandler(
     }
     const {
       amount,
+      name,
       category,
       date,
       description,
@@ -87,6 +89,7 @@ const updateExpenseTransaction = asyncHandler(
       { _id: id, user: req.user._id },
       {
         amount,
+        name,
         category,
         date,
         description,
@@ -121,6 +124,41 @@ const updateExpenseTransaction = asyncHandler(
       );
   }
 );
+
+// for getting single expense transaction
+const getSingleExpenseTransaction = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    if (!req.user)
+      return res.status(401).json(new ApiError(401, "Unauthorized access"));
+    const { id } = req.query;
+    console.log("id",id);
+    if (!id) {
+      return res
+        .status(401)
+        .json(new ApiError(401, "Transaction id must be provided"));
+    }
+    const expenseTransaction = await Transaction.findOne({
+      _id: id,
+      user: req.user._id,
+    });
+
+    if (!expenseTransaction) {
+      return res
+        .status(404)
+        .json(
+          new ApiError(
+            404,
+            "Transaction not found or you're not authorized to view it"
+          )
+        );
+    }
+    res
+      .status(200)
+      .json(
+        new ApiResponse(200, expenseTransaction, "fetch expense successfully")
+      );
+  }
+);
 const deleteExpenseTransaction = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     if (!req.user)
@@ -146,7 +184,122 @@ const deleteExpenseTransaction = asyncHandler(
           )
         );
     }
-    res.status(200).json(new ApiResponse(200,deleteExpenseTransaction,"Deleted expense successfully"));
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          deleteExpenseTransaction,
+          "Deleted expense successfully"
+        )
+      );
   }
 );
-export { createExpenseTransaction,updateExpenseTransaction ,deleteExpenseTransaction};
+
+const getAllExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.user)
+    return res.status(401).json(new ApiError(401, "Unauthorized access"));
+
+  const userId = req.user._id;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
+  const expense = await Transaction.aggregate([
+    {
+      $match: {
+        type: "expense",
+        user: userId,
+      },
+    },
+    {
+      $facet: {
+        expenses: [
+          { $skip: skip },
+          { $limit: limit },
+          { $sort: { createdAt: -1 } },
+        ],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const totalExpenses = expense[0].totalCount[0]?.count || 0;
+  const totalPages = Math.ceil(totalExpenses / limit);
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        expenses: expense[0].expenses,
+        currentPage: page,
+        totalPages: totalPages,
+        totalExpenses: totalExpenses,
+      },
+      "Fetch all expenses successfully"
+    )
+  );
+});
+
+// for search expense of a user
+const searchExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.user)
+    return res.status(401).json(new ApiError(401, "Unauthorized access"));
+  const userId = req.user._id;
+
+  const { search = "", sort = "createdAt", order = "desc" } = req.query;
+  const searchRegex = new RegExp(search as string, "i");
+  const expenses = await Transaction.aggregate([
+    {
+      $match: {
+        user: userId,
+        type: "expense",
+        $or: [
+          { name: { $regex: searchRegex } },
+          { description: { $regex: searchRegex } },
+          { category: { $regex: searchRegex } },
+        ],
+      },
+    },
+    {
+      $facet: {
+        expenses: [
+          { $limit: 10 },
+          { $sort: { [sort as string]: order === "desc" ? -1 : 1 } },
+        ],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+
+    // {
+    //   $limit: 10,
+    // },
+  ]);
+
+  if (expenses[0].expenses.length === 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "no matching expenses found"));
+  }
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        expenses: expenses[0].expenses,
+        currentPage: 1,
+        totalCount: expenses[0].totalCount[0].count,
+        totalPages: 1,
+      },
+      "Expenses search fetched successfully"
+    )
+  );
+});
+
+export {
+  createExpenseTransaction,
+  updateExpenseTransaction,
+  deleteExpenseTransaction,
+  getAllExpense,
+  searchExpense,
+  getSingleExpenseTransaction
+};

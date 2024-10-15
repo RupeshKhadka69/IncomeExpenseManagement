@@ -16,11 +16,11 @@ app.use(cookieParser())
 
 import userRouter from "./routes/User.routes";
 import transcationRouter from "./routes/User.transcation";
-import { errorHandler } from "./utils/GlobalError";
+// import { errorHandler } from "./utils/GlobalError";
 
 
 app.use("/user",userRouter);
 app.use("/transcation",transcationRouter);
-app.use(errorHandler);
+// app.use(errorHandler);
 
 export {app}; 
