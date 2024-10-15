@@ -19,23 +19,26 @@ const InputArea = ({
   autoCapitalize,
   className = "",
   isMobile = false,
+  parseAs,
 }) => {
-
-
+  const registerOptions = {
+    required: required || emailPhone || password ? false : `${label} is required!`,
+    valueAsNumber: type === 'number',
+    setValueAs: (v) => {
+      if (parseAs === 'float') return parseFloat(v);
+      if (parseAs === 'int') return parseInt(v, 10);
+      return v;
+    },
+  };
 
   return (
     <>
       <input
-        {...register(name, {
-          required:
-            required || emailPhone || password
-              ? false
-              : `${label} is required!`,
-        })}
+        {...register(name, registerOptions)}
+        type={type}
         defaultValue={defaultValue}
         value={value}
         id={name}
-        type={type}
         placeholder={placeholder}
         name={name}
         disabled={disabled}
@@ -44,7 +47,7 @@ const InputArea = ({
         min={min}
         step={step}
         autoCapitalize={autoCapitalize}
-        className={`border-[1px] border-gray-400 dark:border-gray-400 focus:ring-2 disabled:bg-gray-100 focus:ring-primary focus:border-none pl-2 h-8 text-sm focus:outline-none block w-full bg-white dark:bg-slate-800 focus:bg-white form-input rounded-sm dark:text-gray-200 ${className}`}
+        className={`flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       />
     </>
   );

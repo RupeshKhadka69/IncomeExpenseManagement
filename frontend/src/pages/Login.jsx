@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { BsEyeFill, BsEyeSlashFill } from "react-icons/bs";
@@ -19,36 +19,48 @@ const Login = () => {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm();
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
+    setValue("email", e.target.value);
   };
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value);
+    setValue("password", e.target.value);
   };
+  const passwords = watch("password");
+  const emails = watch("email");
+
+  console.log("password", passwords);
+  console.log("emails", emails);
 
   const onSubmit = async () => {
     setLoading(true);
     try {
       const response = await AdminService.login({ email, password });
-  
+
       console.log("Response:", response);
-  
+
       if (response?.statuscode === 200) {
         const { user, jwtToken } = response.data;
-  
+
         // Store the entire user object and token in localStorage
-        localStorage.setItem("adminInfo", JSON.stringify({ user, token: jwtToken }));
-  
+        localStorage.setItem(
+          "adminInfo",
+          JSON.stringify({ user, token: jwtToken })
+        );
+
         // Update the context with user information
         dispatch({
           type: "USER_LOGIN",
           payload: { user, token: jwtToken },
         });
-  
+
         // Redirect to home page
         navigate("/");
       } else {
@@ -62,8 +74,6 @@ const Login = () => {
       setLoading(false);
     }
   };
- 
-  
 
   return (
     <div className="login">
