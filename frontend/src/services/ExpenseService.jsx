@@ -10,13 +10,15 @@ const ExpenseServices = {
       `/transcation/get-all-expense?page=${page}&limit=${limit}`
     );
   },
+  DeleteSigleExpense(id) {
+    return requests.delete(`/transcation//delete-expense/${id}`);
+  },
   GetSingleExpense(id) {
     return requests.get(`/transcation/get-single-expense?id=${id}`);
   },
-  UpdateExpense(id,data) {
-    return requests.patch(`/transcation/update-expense?id=${id}`,data);
+  UpdateExpense(id, data) {
+    return requests.patch(`/transcation/update-expense?id=${id}`, data);
   },
-   
 };
 
 export default ExpenseServices;

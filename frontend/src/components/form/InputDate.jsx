@@ -1,7 +1,7 @@
 import Calendar from "@sbmdkl/nepali-datepicker-reactjs";
 import "@sbmdkl/nepali-datepicker-reactjs/dist/index.css";
 import React, { useEffect, useState } from "react";
-import { getLocalADBSDate } from "../functions/convertToLocalDate";
+import { getLocalADBSDate } from "../../utils/date";
 
 const InputDate = ({
   name,
@@ -14,10 +14,13 @@ const InputDate = ({
   languageType = "en",
   placeholder = "yyyy/ mm/ dd",
 }) => {
-  const dateFormat = localStorage.getItem("date");
+  
+  const dateFormat ="bs";
   const [isDelayedRender, setIsDelayedRender] = useState(false);
   const [adDate, setAdDate] = useState("");
-  const [bsDate, setBsDate] = useState("");
+  const [bsDate, setBsDate] = useState(null);
+  //* to mount component for Calendar when state changes
+  const [key, setKey] = useState("");
 
   //* this is necessary to make sure that the defaultDate value are displayed in first render of component
   useEffect(() => {
@@ -32,13 +35,24 @@ const InputDate = ({
   useEffect(() => {
     if (defaultValue) {
       const newDate = getLocalADBSDate(dateFormat, defaultValue);
-      dateFormat === "bs" && setBsDate(newDate);
-      dateFormat === "ad" && setAdDate(newDate);
+
+      if (dateFormat === "bs") {
+        setBsDate(newDate);
+        setKey(newDate);
+      } else if (dateFormat === "ad") {
+        setAdDate(newDate);
+      }
     }
   }, [dateFormat, defaultValue]);
 
+  const handleClear = () => {
+    setValue(name, "");
+    setKey(name);
+    setBsDate(null);
+  };
+
   return (
-    <>
+    <div className="relative">
       {dateFormat === "ad" ? (
         <input
           type="date"
@@ -48,19 +62,34 @@ const InputDate = ({
         />
       ) : (
         isDelayedRender && (
-          <Calendar
-            onChange={({ bsDate, adDate }) => {
-              setValue(name, adDate);
-            }}
-            language={languageType}
-            defaultDate={defaultDate ? defaultDate : bsDate}
-            hideDefaultValue={hideDefaultValue}
-            placeholder={placeholder}
-            className={`h-8 border-[1px] border-gray-400 dark:border-gray-400 dark:placeholder:text-white focus:ring-2 disabled:bg-gray-100 focus:ring-primary focus:border-none pl-2 text-sm focus:outline-none block w-full placeholder:text-black bg-white dark:bg-slate-800 focus:bg-white rounded-sm dark:text-gray-200 ${className}`}
-          />
+          <>
+            <Calendar
+              onChange={({ bsDate, adDate }) => {
+                setValue(name, adDate);
+                setKey(bsDate);
+                setBsDate(bsDate);
+              }}
+              key={key}
+              language={languageType}
+              defaultDate={defaultDate ? defaultDate : bsDate}
+              // hideDefaultValue={hideDefaultValue || !bsDate}
+              hideDefaultValue={!bsDate}
+              placeholder={placeholder}
+              className={`h-8 border-[1px] border-gray-400 dark:border-gray-400 dark:placeholder:text-white focus:ring-2 disabled:bg-gray-100 focus:ring-primary focus:border-none pl-2 text-sm focus:outline-none block w-full placeholder:text-black bg-white dark:bg-slate-800 focus:bg-white rounded-sm dark:text-gray-200 ${className}`}
+            />
+            {bsDate && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="absolute w-4 h-4 text-gray-500 transform -translate-y-1/2 accent-gray-500 right-1 top-3.5 hover:text-gray-700"
+              >
+                ✖
+              </button>
+            )}
+          </>
         )
       )}
-    </>
+    </div>
   );
 };
 

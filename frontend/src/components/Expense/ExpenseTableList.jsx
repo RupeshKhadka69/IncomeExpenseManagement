@@ -3,8 +3,37 @@ import { Tooltip } from "antd";
 import { useNavigate } from "react-router-dom";
 import { FaRegEdit } from "react-icons/fa";
 import { MdOutlineDeleteOutline } from "react-icons/md";
-const ExpenseTableList = ({ data }) => {
+import {Modal} from "antd";
+import ExpenseServices from "../../services/ExpenseService";
+import { notifySuccess,notifyError } from "../../utils/Toast";
+
+const ExpenseTableList = ({ data,refetch }) => {
   const navigate = useNavigate();
+  const handleFollowClick = (id) => {
+  
+
+    Modal.confirm({
+      title: "Are you sure you want to delete this Expense?",
+      async onOk() {
+        console.log("id",id)
+        try {
+          const res = await ExpenseServices.DeleteSigleExpense(
+            id,
+          );
+          notifySuccess(res.message);
+          await refetch();
+        } catch (e) {
+          notifyError(e?.response?.message);
+        }
+      },
+      okButtonProps: {
+        className: "custom-cancel-button",
+      },
+      cancelButtonProps: {
+        className: "custom-ok-button",
+      },
+    });
+  };
 
   return (
     <div className="overflow-x-auto mt-5">
@@ -53,9 +82,9 @@ const ExpenseTableList = ({ data }) => {
                   </span>
                 </Tooltip>
                 <Tooltip title="Delete">
-                  <span className="cursor-pointer">
+                  <button type="button" className="cursor-pointer" onClick={()=> handleFollowClick(item?._id)}>
                     <MdOutlineDeleteOutline  size={20} />
-                  </span>
+                  </button>
                 </Tooltip>
               </td>
               </tr>

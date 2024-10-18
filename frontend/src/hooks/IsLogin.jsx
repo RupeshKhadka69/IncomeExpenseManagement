@@ -14,5 +14,5 @@ export const PrivateRoute = () => {
 export const PublicRoute = () => {
     const { state } = useContext(AdminContext);
     const { adminInfo } = state;
-   return !adminInfo ? <Outlet/> : <Navigate to={"/"} />
+   return !adminInfo ? <Outlet/> : <Navigate to={"/register"} />
 }

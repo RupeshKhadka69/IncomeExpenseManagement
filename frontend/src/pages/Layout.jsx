@@ -7,13 +7,12 @@ import About from "../pages/About";
 import Contact from "../pages/Contact";
 import ExpenseDetail from "../components/Expense/ExpenseDetail";
 import AddExpense from "../components/Expense/AddExpense";
-import { ToastContainer } from "react-toastify";
 
 const Layout = () => {
   return (
     <div className="flex flex-col h-screen bg-primary/10 dark:bg-gray-900">
       <Header />
-      <ToastContainer />
+      
       <div className="flex flex-1 overflow-hidden">
         <div  className="w-1/6 flex-shrink-0">
         <Sidebar />

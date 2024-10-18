@@ -12,6 +12,8 @@ import SectionTitle from "../Typography/SectionTitle";
 import PageTitle from "../Typography/PageTitle";
 import { RxCross2 } from "react-icons/rx";
 import LabelArea from "../form/LabelArea";
+import InputDate from "../form/InputDate";
+import TextArea from "../form/TextArea";
 const AddExpense = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ const AddExpense = () => {
       reset({ ...d });
     },
   });
-
+  console.log("data", data?.date);
   const onSubmit = async (data) => {
     //   data.patient_id = patientDetails?.patient?.patient_id;
     if (id) {
@@ -89,36 +91,52 @@ const AddExpense = () => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-5 mt-2 gap-2">
           <LabelArea label="Name:" />
-          <div className="">
+          <div className="col-span-2">
             <InputArea register={register} name="name" />
           </div>
         </div>
         <div className="grid grid-cols-5 mt-2 gap-2">
           <LabelArea label="Amount:" />
-          <InputArea
-            register={register}
-            name="amount"
-            type="number"
-            step="0.01"
-            parseAs="float"
-          />
+          <div className="col-span-2">
+            <InputArea
+              register={register}
+              name="amount"
+              type="number"
+              step="0.01"
+              parseAs="float"
+            />
+          </div>
         </div>
         <div className="grid grid-cols-5 mt-2 gap-2">
           <LabelArea label="Category:" />
-          <InputArea register={register} name="category" />
+          <div className="col-span-2">
+            <InputArea register={register} name="category" />
+          </div>
         </div>
         <div className="grid grid-cols-5 mt-2 gap-2">
           <LabelArea label="Date:" />
-          <InputArea register={register} name="date" type="date" />
+          <div className="col-span-2">
+            <InputDate
+              register={register}
+              setValue={setValue}
+              name="date"
+              defaultValue={data?.date}
+              hideDefaultValue={!data?.date}
+            />
+          </div>
         </div>
-        <div className="grid grid-cols-5 mt-2 gap-2">
-          <LabelArea label="Description:" />
-          <InputArea register={register} name="description" />
+        <div className="grid grid-cols-5 mt-2 gap-2 items-start">
+          <div className="self-start pt-1">
+            <LabelArea label="Description:" />
+          </div>
+          <div className="col-span-2">
+            <TextArea register={register} name="description" />
+          </div>
         </div>
         <div className="grid grid-cols-5 mt-8 gap-2">
-          <div className="col-span-2 flex justify-end">
+          <div className="col-span-3 flex justify-end">
             <Button>
-              <input type="submit" value="Add" className="cursor-pointer" />
+              <input type="submit" value={id ? "Edit" : "Add"} className="cursor-pointer" />
             </Button>
           </div>
         </div>

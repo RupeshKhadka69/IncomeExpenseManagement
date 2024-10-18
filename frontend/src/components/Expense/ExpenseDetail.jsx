@@ -11,6 +11,7 @@ import InputArea from "../form/InputArea";
 import { useForm } from "react-hook-form";
 import Button from "../form/Button";
 import SectionTitle from "../Typography/SectionTitle";
+import { Modal } from "antd";
 
 const ExpenseDetail = () => {
   const [page, setPage] = useState(1);
@@ -49,6 +50,7 @@ const ExpenseDetail = () => {
   const handlePageChange = (newPage) => {
     setPage(newPage);
   };
+
 
   return (
     <div className="px-8">
@@ -94,7 +96,7 @@ const ExpenseDetail = () => {
           <Loading loading={isLoading} />
         ) : (
           <>
-            <ExpenseTableList data={data?.expenses} />
+            <ExpenseTableList data={data?.expenses} refetch={refetch}/>
             <div className="mt-4 flex justify-between items-center">
               <div>
                 Showing page {data?.currentPage ? data?.currentPage : 0} of{" "}

@@ -1,3 +1,4 @@
+import Register from "../pages/Register";
 import configureAxios from "./ConfigureAxios";
 const requests = configureAxios();
 
@@ -7,6 +8,10 @@ const AdminServices = {
     },
     getUserMe(){
         return requests.get("/user/me")
+    },
+    Register(body){
+        return   requests.post("user/register",body);
+
     }
 
 } 
