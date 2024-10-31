@@ -124,7 +124,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 const refreshAccessToken = asyncHandler(async (req: AuthRequest, res: Response) => {
   const token = req.cookies.refreshToken || req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
-    throw new ApiError(401, "Unauthorized: No token provided");
+    res.status(401).json(new ApiError(401, "Unauthorized: No token provided"));
   }
   try {
     const decodedToken: any = jwt.verify(
@@ -170,6 +170,10 @@ const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
     .json(new ApiResponse(200, {}, "user logout successfully"));
 });
 const getUserMe = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json(new ApiError(401, "Unauthorized access"));
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, req?.user, "User Fetched successfully"));

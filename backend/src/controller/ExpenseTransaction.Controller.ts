@@ -211,12 +211,13 @@ const getAllExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
         user: userId,
       },
     },
+    { $sort: { createdAt: -1 } },
     {
       $facet: {
         expenses: [
           { $skip: skip },
           { $limit: limit },
-          { $sort: { createdAt: -1 } },
+          
         ],
         totalCount: [{ $count: "count" }],
       },
