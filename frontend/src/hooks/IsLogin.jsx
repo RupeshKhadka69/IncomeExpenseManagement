@@ -8,11 +8,11 @@ export const PrivateRoute = () => {
     const { state } = useContext(AdminContext);
   const { adminInfo } = state;
 
-   return adminInfo ? <Outlet/> : <Navigate  to={"/login"}/>
+   return adminInfo ? <Outlet /> : <Navigate to="/login/" />;
 }
 
 export const PublicRoute = () => {
     const { state } = useContext(AdminContext);
     const { adminInfo } = state;
-   return !adminInfo ? <Outlet/> : <Navigate to={"/register"} />
+   return !adminInfo ? <Outlet /> : <Navigate to="/" />
 }

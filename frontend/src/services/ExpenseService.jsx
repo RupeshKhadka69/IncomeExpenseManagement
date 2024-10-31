@@ -19,6 +19,9 @@ const ExpenseServices = {
   UpdateExpense(id, data) {
     return requests.patch(`/transcation/update-expense?id=${id}`, data);
   },
+  SearchExpenseList(query){
+    return requests.get(`/transcation/search-expense?search=${query}`);
+  }
 };
 
 export default ExpenseServices;

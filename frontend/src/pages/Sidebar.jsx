@@ -10,7 +10,13 @@ const Sidebar = () => {
             <Link to="/" className="block p-2  w-full hover:bg-slate-500">Home</Link>
           </li>
           <li className="w-full">
+            <Link to="/income" className="block p-2  w-full hover:bg-slate-500">Income</Link>
+          </li>
+          <li className="w-full">
             <Link to="/expense" className="block p-2  w-full hover:bg-slate-500">Expense</Link>
+          </li>
+          <li className="w-full">
+            <Link to="/budget" className="block p-2  w-full hover:bg-slate-500">Budget</Link>
           </li>
           <li className="w-full">
             <Link to="/about" className="block p-2  w-full hover:bg-slate-500">About</Link>

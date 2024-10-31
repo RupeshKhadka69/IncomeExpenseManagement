@@ -5,7 +5,7 @@ import AdminServices from "../services/AdminService";
 const Header = () => {
   const { data, refetch, isLoading } = useQuery({
     queryFn: () => AdminServices.getUserMe(),
-    queryKey: ["get-user-expense"],
+    queryKey: ["get-user"],
     select: (d) => d?.data,
     refetchOnWindowFocus: false,
   });

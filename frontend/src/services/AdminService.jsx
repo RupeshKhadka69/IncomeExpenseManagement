@@ -9,6 +9,9 @@ const AdminServices = {
     getUserMe(){
         return requests.get("/user/me")
     },
+    logout(){
+        return requests.post("user/logout")
+    },
     Register(body){
         return   requests.post("user/register",body);
 
