@@ -92,11 +92,13 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   }
   const isUser = await User.findOne({ email });
   if (!isUser) {
-    throw new ApiError(400, "user doesnot exits with this email");
+    return res
+      .status(200)
+      .json(new ApiError(400, "","user doesnot exits with this email"));
   }
   const isPasswordCorrect = await isUser.isPasswordCorrect(password);
   if (!isPasswordCorrect) {
-  throw  new ApiError(400, "incorrect password");
+    throw new ApiError(400, "incorrect password");
   }
 
   const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
@@ -121,37 +123,54 @@ const login = asyncHandler(async (req: Request, res: Response) => {
       )
     );
 });
-const refreshAccessToken = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const token = req.cookies.refreshToken || req.header("Authorization")?.replace("Bearer ", "");
-  if (!token) {
-    res.status(401).json(new ApiError(401, "Unauthorized: No token provided"));
-  }
-  try {
-    const decodedToken: any = jwt.verify(
-      token,
-      process.env.REFRESH_TOKEN_SECRET as Secret | GetPublicKeyOrSecret
-    );
-    const user = await User.findById(decodedToken._id);
-    if (!user) {
-      throw new ApiError(401, "Unauthorized: User not found");
+const refreshAccessToken = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const token =
+      req.cookies.refreshToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      res
+        .status(401)
+        .json(new ApiError(401, "Unauthorized: No token provided"));
     }
-    if (token !== user.refreshToken) {
-      throw new ApiError(401, "Unauthorized: Refresh token is invalid or expired");
+    try {
+      const decodedToken: any = jwt.verify(
+        token,
+        process.env.REFRESH_TOKEN_SECRET as Secret | GetPublicKeyOrSecret
+      );
+      const user = await User.findById(decodedToken._id);
+      if (!user) {
+        throw new ApiError(401, "Unauthorized: User not found");
+      }
+      if (token !== user.refreshToken) {
+        throw new ApiError(
+          401,
+          "Unauthorized: Refresh token is invalid or expired"
+        );
+      }
+      const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
+        user._id as mongoose.Types.ObjectId
+      );
+      const options = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Ensure this is only true in production
+      };
+      res
+        .status(200)
+        .cookie("jwtToken", jwtToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+          new ApiResponse(
+            200,
+            { jwtToken, refreshToken },
+            "Access token refreshed successfully"
+          )
+        );
+    } catch (error) {
+      throw new ApiError(401, "Error while refreshing access token");
     }
-    const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(user._id as mongoose.Types.ObjectId);
-    const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Ensure this is only true in production
-    };
-    res
-      .status(200)
-      .cookie("jwtToken", jwtToken, options)
-      .cookie("refreshToken", refreshToken, options)
-      .json(new ApiResponse(200, { jwtToken, refreshToken }, "Access token refreshed successfully"));
-  } catch (error) {
-    throw new ApiError(401, "Error while refreshing access token");
   }
-});
+);
 
 const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   await User.findByIdAndUpdate(
@@ -257,5 +276,5 @@ export {
   refreshAccessToken,
   updateUserAccount,
   updateProfilePicture,
-  changePassword
+  changePassword,
 };
