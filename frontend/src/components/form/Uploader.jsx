@@ -89,8 +89,9 @@ const Uploader = ({
           </div>
         ) : replaceFile ? (
           <img
-            src={`${import.meta.env.VITE_APP_API_BASE_URL}${replaceFile}`}
+            src={`${replaceFile}`}
             className="w-24 mt-3 rounded"
+            alt={name}
           />
         ) : null}
       </aside>

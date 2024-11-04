@@ -11,6 +11,7 @@ import IncomeDetail from "../components/Income/IncomeDetail";
 import AddIncome from "../components/Income/AddIncome";
 import BudgetDetail from "../components/Budget/BudgetDetail";
 import AddBudget from "../components/Budget/AddBudget";
+import Register from "./Register";
 
 const Layout = () => {
   return (
@@ -18,12 +19,13 @@ const Layout = () => {
       <Header />
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-1/6 flex-shrink-0">
+        <div className="w-[15%] flex-shrink-0">
           <Sidebar />
         </div>
         <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/profile/update/:id" element={<Register />} />
             <Route path="/income" element={<IncomeDetail />} />
             <Route path="/expense" element={<ExpenseDetail />} />
             <Route path="/budget" element={<BudgetDetail />} />

@@ -9,6 +9,10 @@ const AdminServices = {
     getUserMe(){
         return requests.get("/user/me")
     },
+    updateUser(body){
+        return requests.patch("/user/update-account",body)
+    },
+
     logout(){
         return requests.post("user/logout")
     },

@@ -12,6 +12,7 @@ import Button from "../form/Button";
 import SectionTitle from "../Typography/SectionTitle";
 import { Modal } from "antd";
 import IncomeServices from "../../services/IncomeService";
+import { HiOutlineArrowRight, HiOutlineArrowLeft } from "react-icons/hi";
 
 const IncomeDetail = () => {
   const [page, setPage] = useState(1);
@@ -84,7 +85,7 @@ const IncomeDetail = () => {
                 autoComplete="off"
                 inputMode="search"
                 name="search"
-                placeholder="Enter place name or address"
+                placeholder="search name or category"
                 type="search"
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -96,23 +97,25 @@ const IncomeDetail = () => {
         ) : (
           <>
             <IncomeTableList data={data?.incomes} refetch={refetch} />
-            <div className="mt-4 flex justify-between items-center">
+            <div className="mt-4 flex justify-between items-center text-black  dark:text-white">
               <div>
                 Showing page {data?.currentPage ? data?.currentPage : 0} of{" "}
                 {data?.totalPages ? data?.totalPages : 0}
               </div>
               <div className="flex gap-2">
                 <button
+                  className="text-white dark:text-gray-900 cursor-pointer bg-blue-600 dark:bg-blue-400 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2  dark:hover:bg-blue-700 "
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
                 >
-                  Previous
+                  <HiOutlineArrowLeft className="h-4 w-4" />
                 </button>
                 <button
+                  className="text-white dark:text-gray-900 cursor-pointer bg-blue-600 dark:bg-blue-400  focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2  dark:hover:bg-blue-700 "
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page === data?.totalPages}
                 >
-                  Next
+                  <HiOutlineArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </div>

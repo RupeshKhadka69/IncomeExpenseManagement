@@ -36,46 +36,46 @@ const IncomeTableList = ({ data,refetch }) => {
   };
 
   return (
-    <div className="overflow-x-auto mt-5">
-      <table className="w-full divide-y divide-gray-400 dark:divide-gray-700">
-        <thead className="dark:text-gray-300 text-gray-400">
+    <div className=" relative overflow-x-auto mt-5">
+      <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
           <tr>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+            <th className="px-6 py-3">
               Name
             </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+            <th className="px-6 py-3">
               Amount
             </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+            <th className="px-6 py-3">
               Category
             </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+            <th className="px-6 py-3">
               Date
             </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+            <th className="px-6 py-3">
               Description
             </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+            <th className="px-6 py-3">
               Action
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
+        <tbody className="">
           {data && data.length > 0 ? (
             data.map((item, index) => (
-              <tr key={index}>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">{item?.name}</td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">{item?.amount}</td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+              <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                <td className="text-xs  text-left px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{item?.name}</td>
+                <td className="px-6 py-4">{item?.amount}</td>
+                <td className="px-6 py-4">
                   {item?.category}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+                <td className="px-6 py-4">
                   {item?.date && getLocalADBSDate("bs", item?.date)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+                <td className="px-6 py-4">
                   {item?.description}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left flex gap-2 items-center">
+                <td className="px-6 py-4 flex gap-2 items-center">
                 <Tooltip title="Edit">
                   <span className="cursor-pointer" onClick={() => navigate(`edit-income/${item?._id}`)}>
                     <FaRegEdit size={18} />

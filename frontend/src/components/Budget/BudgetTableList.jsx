@@ -32,50 +32,37 @@ const BudgetTableList = ({ data, refetch }) => {
   };
 
   return (
-    <div className="overflow-x-auto mt-5">
-      <table className="w-full divide-y divide-gray-400 dark:divide-gray-700">
-        <thead className="dark:text-gray-300 text-gray-400">
+    <div className="relative overflow-x-auto mt-5">
+      <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
           <tr>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-              Name
-            </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-              Amount
-            </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-              Start Date
-            </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-              End Date
-            </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-              Description
-            </th>
-            <th className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-              Action
-            </th>
+            <th className="px-6 py-3">Name</th>
+            <th className="px-6 py-3">Amount</th>
+            <th className="px-6 py-3">Start Date</th>
+            <th className="px-6 py-3">End Date</th>
+            <th className="px-6 py-3">Categoty</th>
+            <th className="px-6 py-3">Action</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
           {data && data.length > 0 ? (
             data.map((item, index) => (
-              <tr key={index}>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+              <tr
+                key={index}
+                className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
+              >
+                <td className="text-xs  text-left px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
                   {item?.BudgetName}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-                  {item?.amount}
-                </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+                <td className="px-6 py-3">{item?.amount}</td>
+                <td className="px-6 py-3">
                   {item?.startDate && getLocalADBSDate("bs", item?.startDate)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
+                <td className="px-6 py-3">
                   {item?.endDate && getLocalADBSDate("bs", item?.endDate)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left">
-                  {item?.description}
-                </td>
-                <td className="whitespace-nowrap px-3 py-3 text-xs font-normal text-left flex gap-2 items-center">
+                <td className="px-6 py-3">{item?.description}</td>
+                <td className="px-6 py-3 flex gap-2 items-center">
                   <Tooltip title="Edit">
                     <span
                       className="cursor-pointer"
