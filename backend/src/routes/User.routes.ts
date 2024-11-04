@@ -25,8 +25,18 @@ router.post(
 );
 router.post("/login", login);
 router.post("/logout", auth, logout);
-router.patch("/update-account", auth, updateUserAccount);
-router.patch("/change-password",auth,changePassword);
+router.patch(
+  "/update-account",
+  auth,
+  upload.fields([
+    {
+      name: "profile_picture",
+      maxCount: 1,
+    },
+  ]),
+  updateUserAccount
+);
+router.patch("/change-password", auth, changePassword);
 router.patch(
   "/profile-picture",
   auth,
@@ -35,4 +45,4 @@ router.patch(
 );
 router.get("/me", auth, getUserMe);
 router.post("/refresh-token", auth, refreshAccessToken);
-export default router;
+export default router; 

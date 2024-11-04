@@ -176,7 +176,6 @@ const analyzeFinace = asyncHandler(async (req: AuthRequest, res: Response) => {
     },
   ]);
   const recentTransaction: any = await fetchRecentTransaction(userId);
-  console.log("recentTransaction", recentTransaction);
   const budget = await BudgetModel.find({ user: userId });
   const insights: any[] = [];
   const suggestions: any[] = [];

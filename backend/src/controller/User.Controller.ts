@@ -94,7 +94,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   if (!isUser) {
     return res
       .status(200)
-      .json(new ApiError(400, "","user doesnot exits with this email"));
+      .json(new ApiError(400, "", "user doesnot exits with this email"));
   }
   const isPasswordCorrect = await isUser.isPasswordCorrect(password);
   if (!isPasswordCorrect) {
@@ -201,34 +201,69 @@ const getUserMe = asyncHandler(async (req: AuthRequest, res: Response) => {
 const updateUserAccount = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const { username, email } = req.body;
-    if (!username || !email) {
-      throw new ApiError(401, "fields are empty");
+    
+    // Get the profile picture file from the correct field name
+    const profileFile = req.files && (req.files as any)['profile_picture']?.[0];
+    
+    let uploadedImageToCloudinary;
+    
+    if (profileFile) {
+      try {
+        uploadedImageToCloudinary = await uploadOnCloudinary(profileFile.path);
+        
+        if (!uploadedImageToCloudinary?.url) {
+          throw new ApiError(400, "Error while uploading profile picture to cloudinary");
+        }
+      } catch (error) {
+        throw new ApiError(400, "Failed to upload image to cloudinary");
+      }
     }
+
+    if (!username || !email) {
+      throw new ApiError(400, "Username and email are required");
+    }
+
+    // Create update object
+    const updateData: any = {
+      username,
+      email
+    };
+
+    // Only add profile_picture to update if we have a new one
+  if (uploadedImageToCloudinary?.url) {
+      updateData.profile_picture = uploadedImageToCloudinary.url;
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user?._id,
       {
-        $set: {
-          username,
-          email,
-        },
+        $set: updateData
       },
       { new: true }
     ).select("-password");
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
     return res
       .status(200)
-      .json(new ApiResponse(200, user, "user updated succesfully"));
+      .json(new ApiResponse(200, user, "User updated successfully"));
   }
 );
 const changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { oldPassword, newPassword } = req.body;
   if (!oldPassword && !newPassword) {
-    throw new ApiError(400, "Both old and new Password required");
+    return res
+      .status(400)
+      .json(new ApiError(400, "", "Both old and new Password required"));
   }
   const user = await User.findById(req.user?._id);
-  if (!user) throw new ApiError(400, "no user found");
+  if (!user)
+    return res.status(400).json(new ApiError(400, "", "Unauthorized access"));
   const isPasswordCorrect = await user?.isPasswordCorrect(oldPassword);
   if (!isPasswordCorrect) {
-    throw new ApiError(400, "Password is not correct");
+    return res.status(400).json(new ApiError(400, "", "Password is incorrect"));
   }
   user.password = newPassword;
   await user.save({ validateBeforeSave: false });
