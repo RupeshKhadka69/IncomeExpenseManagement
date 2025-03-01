@@ -1,12 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
-import { BsEyeFill, BsEyeSlashFill } from "react-icons/bs";
 import InputArea from "../utils/InputArea";
 import Error from "../utils/Error";
-import Loading from "../utils/Loading";
 import AdminService from "../services/AdminService";
-import Button from "../components/form/Button";
 import Uploader from "../components/form/Uploader";
 import { notifyError, notifySuccess } from "../utils/Toast";
 import { Link } from "react-router-dom";
@@ -19,15 +16,25 @@ const Register = () => {
     handleSubmit,
     watch,
     reset,
+    trigger,
     setValue,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    mode: "onChange", // Change to onChange for more responsive validation
+    criteriaMode: "all", // Show all validation errors
+    reValidateMode: "onChange", // Re-validate when fields change
+    defaultValues: {
+      email: "",
+      password: "",
+      username: "",
+    },
+  });
   const { id } = useParams();
 
   const { data, refetch, isLoading } = useQuery({
     queryFn: () => AdminServices.getUserMe(),
     queryKey: ["get-user"],
-    select: (d) => d?.data,
+    select: (d) => d?.data?.user,
     refetchOnWindowFocus: false,
     enabled: !!id,
     onSuccess: (d) => {
@@ -37,46 +44,50 @@ const Register = () => {
   });
   const [profileStatus] = watch(["profile_picture"]);
   const navigate = useNavigate();
+  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
   const onSubmit = async (data) => {
     try {
       if (id) {
         // For update, create FormData only if there's a new file
         let payload;
-        if (data.profile_picture instanceof FileList || data.profile_picture instanceof File) {
+        if (
+          data.profile_picture instanceof FileList ||
+          data.profile_picture instanceof File
+        ) {
           const formData = new FormData();
           // Add all non-file fields
-          Object.keys(data).forEach(key => {
-            if (key !== 'profile_picture') {
+          Object.keys(data).forEach((key) => {
+            if (key !== "profile_picture") {
               formData.append(key, data[key]);
             }
           });
           // Add the file if it exists
           if (data.profile_picture instanceof FileList) {
-            formData.append('profile_picture', data.profile_picture[0]);
+            formData.append("profile_picture", data.profile_picture[0]);
           } else if (data.profile_picture instanceof File) {
-            formData.append('profile_picture', data.profile_picture);
+            formData.append("profile_picture", data.profile_picture);
           }
           payload = formData;
         } else {
           // If no new file, send regular JSON
           payload = data;
         }
-        
+
         const res = await AdminService.updateUser(payload);
         notifySuccess(res?.message);
         navigate("/");
       } else {
         // For new registration, always use FormData
         const formData = new FormData();
-        Object.keys(data).forEach(key => {
-          if (key === 'profile_picture' && data[key]) {
+        Object.keys(data).forEach((key) => {
+          if (key === "profile_picture" && data[key]) {
             formData.append(key, data[key][0]);
           } else {
             formData.append(key, data[key]);
           }
         });
-        
+
         const res = await AdminService.Register(formData);
         notifySuccess(res?.message);
         navigate("/");
@@ -114,10 +125,15 @@ const Register = () => {
                 name="username"
                 type="text"
                 id="username"
+                label="Username"
                 register={register}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                 placeholder="Choose a username"
+                rules={{
+                  required: "Username is required",
+                }}
               />
+              {errors.username && <Error errorName={errors.username} />}
             </div>
 
             {/* Email Field */}
@@ -131,11 +147,20 @@ const Register = () => {
               <InputArea
                 name="email"
                 type="email"
+                label="Email"
                 id="email"
                 register={register}
+                rules={{
+                  required: "Email is required",
+                  pattern: {
+                    value: emailPattern,
+                    message: "Please enter a valid email address",
+                  },
+                }}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                 placeholder="Enter your email"
               />
+              {errors.email && <Error errorName={errors.email} />}
             </div>
 
             {!id && (
@@ -155,7 +180,15 @@ const Register = () => {
                     register={register}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                     placeholder="Create a strong password"
+                    rules={{
+                      required: "Password is required",
+                      minLength: {
+                        value: 6,
+                        message: "Password must be at least 6 characters",
+                      },
+                    }}
                   />
+                  {errors.password && <Error errorName={errors.password} />}
                 </div>
               </>
             )}

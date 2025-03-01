@@ -1,16 +1,25 @@
 import React from "react";
-import ScaleLoader from "react-spinners/ScaleLoader";
+import { motion } from "framer-motion";
 
 const Loading = ({ loading }) => {
+  if (!loading) return null;
+
   return (
-    <div className="text-lg text-center py-6">
-      <ScaleLoader
-        color="#7f69ef"
-        loading={loading}
-        height={25}
-        width={3}
-        radius={3}
-        margin={4}
+    <div className="flex justify-center items-center py-6">
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: [1, 1.5, 1] }}
+        transition={{
+          duration: 1.2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        style={{
+          width: "40px",
+          height: "40px",
+          backgroundColor: "#7f69ef",
+          borderRadius: "50%",
+        }}
       />
     </div>
   );

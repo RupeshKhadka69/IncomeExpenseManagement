@@ -8,6 +8,9 @@ const DashboardService = {
   getSummary() {
     return requests.get("/dashboard/advice");
   },
+  getForecast() {
+    return requests.get("/dashboard/generate-forecast");
+  },
 };
 
 export default DashboardService;

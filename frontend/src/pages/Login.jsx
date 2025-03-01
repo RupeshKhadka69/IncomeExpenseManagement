@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { BsEyeFill, BsEyeSlashFill } from "react-icons/bs";
+import { FcGoogle } from "react-icons/fc";
 import InputArea from "../utils/InputArea";
 import Error from "../utils/Error";
 import Loading from "../utils/Loading";
@@ -9,43 +10,40 @@ import { AdminContext } from "../context/AdminContext";
 import AdminService from "../services/AdminService";
 import { notifyError, notifySuccess } from "../utils/Toast";
 import { Link } from "react-router-dom";
+
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { dispatch } = useContext(AdminContext);
 
+  // Email validation pattern
+  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     formState: { errors },
-  } = useForm();
+    clearErrors,
+    trigger,
+  } = useForm({
+    mode: "onChange", // Change to onChange for more responsive validation
+    criteriaMode: "all", // Show all validation errors
+    reValidateMode: "onChange", // Re-validate when fields change
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-  const handleEmailChange = (e) => {
-    setEmail(e.target.value);
-    setValue("email", e.target.value);
-  };
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-    setValue("password", e.target.value);
-  };
-  const passwords = watch("password");
-  const emails = watch("email");
-
-  console.log("password", passwords);
-  console.log("emails", emails);
-
-  const onSubmit = async () => {
+  const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const response = await AdminService.login({ email, password });
-
-      console.log("Response:", response);
+      const response = await AdminService.login({
+        email: data.email,
+        password: data.password,
+      });
 
       if (response?.statuscode === 200) {
         const { user, jwtToken } = response.data;
@@ -69,10 +67,33 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Error during login:", error);
-      alert("An error occurred. Please try again later.");
+      notifyError(
+        error?.response?.data?.message || "Login failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    // Redirect to the Google OAuth endpoint
+    window.location.href = `http://localhost:8000/user/google`;
+  };
+
+  // Custom handlers for input changes to revalidate fields immediately
+  const handleEmailChange = (e) => {
+    // Trigger validation on the email field immediately after change
+    setTimeout(() => {
+      trigger("email");
+    }, 100);
+  };
+
+  const handlePasswordChange = (e) => {
+    // Trigger validation on the password field immediately after change
+    setTimeout(() => {
+      trigger("password");
+    }, 100);
   };
 
   return (
@@ -99,12 +120,21 @@ const Login = () => {
               <InputArea
                 name="email"
                 type="email"
+                label="Email"
                 id="email"
                 register={register}
                 handleChange={handleEmailChange}
+                rules={{
+                  required: "Email is required",
+                  pattern: {
+                    value: emailPattern,
+                    message: "Please enter a valid email address",
+                  },
+                }}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                 placeholder="Enter your email"
               />
+              {errors.email && <Error errorName={errors.email} />}
             </div>
 
             <div className="space-y-2">
@@ -118,7 +148,15 @@ const Login = () => {
                 <InputArea
                   register={register}
                   name="password"
+                  label="Password"
                   handleChange={handlePasswordChange}
+                  rules={{
+                    required: "Password is required",
+                    minLength: {
+                      value: 6,
+                      message: "Password must be at least 6 characters",
+                    },
+                  }}
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
@@ -135,6 +173,16 @@ const Login = () => {
                   )}
                 </button>
               </div>
+              {errors.password && <Error errorName={errors.password} />}
+            </div>
+
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium text-blue-600 hover:text-blue-500"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             <div className="space-y-4">
@@ -144,6 +192,32 @@ const Login = () => {
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? <Loading loading={loading} /> : "Sign in"}
+              </button>
+
+              {/* Divider */}
+              <div className="relative flex items-center">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <span className="flex-shrink mx-4 text-gray-400 text-sm">
+                  or
+                </span>
+                <div className="flex-grow border-t border-gray-300"></div>
+              </div>
+
+              {/* Google Sign-In Button */}
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {googleLoading ? (
+                  <Loading loading={googleLoading} />
+                ) : (
+                  <>
+                    <FcGoogle className="w-5 h-5 mr-2" />
+                    Sign in with Google
+                  </>
+                )}
               </button>
 
               <p className="text-center text-sm text-gray-500">

@@ -4,7 +4,9 @@ import { PrivateRoute, PublicRoute } from "./hooks/IsLogin";
 import Login from "./pages/Login";
 import Layout from "./pages/Layout";
 import Register from "./pages/Register";
-
+import GoogleCallback from "./pages/GoogleCallback";
+import ForgotPassword from "./pages/ForgetPassword";
+import ResetPassword from "./pages/ResetPassword";
 function App() {
   return (
     <div className="App">
@@ -14,6 +16,9 @@ function App() {
             <Route element={<PublicRoute />}>
               <Route path="/login/" element={<Login />} />
               <Route path="/register/" element={<Register />} />
+              <Route path="/auth/google" element={<GoogleCallback />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
             </Route>
             <Route element={<PrivateRoute />}>
               <Route path="/*" element={<Layout />} />

@@ -5,23 +5,29 @@ import AdminServices from "../services/AdminService";
 import { ThemeContext } from "../context/ThemeProvider";
 import { Moon, Sun } from "lucide-react";
 import { TbExchange } from "react-icons/tb";
-
+import { AdminContext } from "../context/AdminContext";
 const Header = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const { dispatch } = useContext(AdminContext);
 
   const { data, refetch, isLoading } = useQuery({
     queryFn: () => AdminServices.getUserMe(),
     queryKey: ["get-user"],
-    select: (d) => d?.data,
+    select: (d) => d?.data?.user,
     refetchOnWindowFocus: false,
   });
 
   const logout = async () => {
     try {
-      const res = await AdminServices.logout();
+      dispatch({
+        type: "USER_LOGOUT",
+        // payload: { user, token: jwtToken },
+      });
+      await AdminServices.logout();
+
       navigate("/login");
     } catch (err) {
       console.log(err);
@@ -75,11 +81,11 @@ const Header = () => {
       ),
     },
   ];
-
+console.log("data",data?.profile_picture)
   return (
     <header className="h-16 p-4 border-b border-gray-300 dark:border-gray-700 dark:bg-gray-800 bg-white shadow-2xl  duration-300 flex justify-between items-center transition-colors">
       <div className="text-xl font-bold text-green-800 dark:text-green-100">
-       My Finance
+        My Finance
       </div>
       <div className="flex items-center gap-3">
         <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-green-400 dark:border-green-500 shadow-sm">
