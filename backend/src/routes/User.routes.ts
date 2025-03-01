@@ -1,4 +1,5 @@
 import { Router } from "express";
+import passport from "passport";
 import {
   register,
   login,
@@ -8,6 +9,10 @@ import {
   updateProfilePicture,
   updateUserAccount,
   changePassword,
+  handleSocialLogin,
+  forgotPasswordRequest,
+  resetForgottenPassword,
+
 } from "../controller/User.Controller";
 import { upload } from "../middleware/multer.middleware";
 import auth from "../middleware/auth.middlerware";
@@ -45,4 +50,29 @@ router.patch(
 );
 router.get("/me", auth, getUserMe);
 router.post("/refresh-token", auth, refreshAccessToken);
-export default router; 
+
+router.route("/forgot-password").post(
+  // userForgotPasswordValidator(),
+  forgotPasswordRequest
+);
+router.route("/reset-password/:resetToken").post(
+  // userResetForgottenPasswordValidator(),
+  // auth,
+  resetForgottenPassword
+);
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["email", "profile"] }),
+  (req, res) => {
+    res.status(200).json({
+      message: "Google login route",
+    });
+  }
+);
+router.get(
+  "/google/callback",
+  passport.authenticate("google"),
+  handleSocialLogin
+);
+
+export default router;

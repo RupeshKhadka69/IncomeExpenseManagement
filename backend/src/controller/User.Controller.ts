@@ -7,6 +7,8 @@ import { ApiResponse } from "../utils/ApiResponse";
 import mongoose, { ObjectId, set } from "mongoose";
 import auth from "../middleware/auth.middlerware";
 import jwt, { GetPublicKeyOrSecret, Secret } from "jsonwebtoken";
+import { sendMail, forgotPasswordMailgenContent } from "../utils/SendMail";
+import crypto from "crypto";
 interface AuthRequest extends Request {
   user?: IUser;
 }
@@ -98,7 +100,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   }
   const isPasswordCorrect = await isUser.isPasswordCorrect(password);
   if (!isPasswordCorrect) {
-    throw new ApiError(400, "incorrect password");
+    return res.status(401).json(new ApiError(401, "", "Password is incorrect"));
   }
 
   const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
@@ -180,7 +182,8 @@ const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
   );
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
   };
   res
     .status(200)
@@ -192,27 +195,38 @@ const getUserMe = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json(new ApiError(401, "Unauthorized access"));
   }
-
+  const { jwtToken } = await generateJwtAndRefreshToken(
+    req.user._id as mongoose.Types.ObjectId
+  );
   return res
     .status(200)
-    .json(new ApiResponse(200, req?.user, "User Fetched successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        { user: req?.user, jwtToken },
+        "User Fetched successfully"
+      )
+    );
 });
 
 const updateUserAccount = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const { username, email } = req.body;
-    
+
     // Get the profile picture file from the correct field name
-    const profileFile = req.files && (req.files as any)['profile_picture']?.[0];
-    
+    const profileFile = req.files && (req.files as any)["profile_picture"]?.[0];
+
     let uploadedImageToCloudinary;
-    
+
     if (profileFile) {
       try {
         uploadedImageToCloudinary = await uploadOnCloudinary(profileFile.path);
-        
+
         if (!uploadedImageToCloudinary?.url) {
-          throw new ApiError(400, "Error while uploading profile picture to cloudinary");
+          throw new ApiError(
+            400,
+            "Error while uploading profile picture to cloudinary"
+          );
         }
       } catch (error) {
         throw new ApiError(400, "Failed to upload image to cloudinary");
@@ -226,18 +240,18 @@ const updateUserAccount = asyncHandler(
     // Create update object
     const updateData: any = {
       username,
-      email
+      email,
     };
 
     // Only add profile_picture to update if we have a new one
-  if (uploadedImageToCloudinary?.url) {
+    if (uploadedImageToCloudinary?.url) {
       updateData.profile_picture = uploadedImageToCloudinary.url;
     }
 
     const user = await User.findByIdAndUpdate(
       req.user?._id,
       {
-        $set: updateData
+        $set: updateData,
       },
       { new: true }
     ).select("-password");
@@ -302,7 +316,130 @@ const updateProfilePicture = asyncHandler(
       .json(new ApiResponse(200, user, "Profile picture updated succesfully"));
   }
 );
+const forgotPasswordRequest = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const { email } = req.body;
 
+    // Get email from the client and check if user exists
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json(new ApiError(401, null, "No email found"));
+    }
+
+    // Generate a temporary token
+    const { unHashedToken, hashedToken, tokenExpiry } =
+      user.generateTemporaryToken(); // generate password reset creds
+    console.log("unHashedToken", unHashedToken);
+    console.log("hashedToken", hashedToken);
+    console.log("tokenExpiry", tokenExpiry);
+    // save the hashed version a of the token and expiry in the DB
+    user.forgotPasswordToken = hashedToken;
+    console.log("user.forgotPasswordToken", user.forgotPasswordToken);
+    user.forgotPasswordExpiry = tokenExpiry;
+    await user.save({ validateBeforeSave: false });
+
+    // Send mail with the password reset link. It should be the link of the frontend url with token
+    await sendMail({
+      email: user?.email,
+      subject: "Password reset request",
+      mailgenContent: forgotPasswordMailgenContent(
+        user.username,
+        // ! NOTE: Following link should be the link of the frontend page responsible to request password reset
+        // ! Frontend will send the below token with the new password in the request body to the backend reset password endpoint
+        `${process.env.FORGOT_PASSWORD_REDIRECT_URL}/${unHashedToken}`
+      ),
+    });
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          {},
+          "Password reset mail has been sent on your mail id"
+        )
+      );
+  }
+);
+const resetForgottenPassword = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const { resetToken } = req.params;
+    const { newPassword } = req.body;
+
+    // Create a hash of the incoming reset token
+
+    let hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    // See if user with hash similar to resetToken exists
+    // If yes then check if token expiry is greater than current date
+
+    const user = await User.findOne({
+      forgotPasswordToken: hashedToken,
+      forgotPasswordExpiry: { $gt: Date.now() },
+    });
+    console.log("user", user);
+
+    // If either of the one is false that means the token is invalid or expired
+    if (!user) {
+      throw new ApiError(489, "Token is invalid or expired");
+    }
+
+    // if everything is ok and token id valid
+    // reset the forgot password token and expiry
+    user.forgotPasswordToken = undefined;
+    user.forgotPasswordExpiry = undefined;
+
+    // Set the provided password as the new password
+    user.password = newPassword;
+     await user.save({ validateBeforeSave: false });
+    const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
+      user._id
+    );
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+
+    return res
+      .status(200)
+      .cookie("jwtToken", jwtToken, options) // set the access token in the cookie
+      .cookie("refreshToken", refreshToken, options) // set the refresh token in the cookie
+      .json(new ApiResponse(200,{user,jwtToken}, "Password reset successfully"));
+  }
+);
+
+const handleSocialLogin = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const user = await User.findById(req.user?._id);
+
+    if (!user) {
+      console.log("user not found");
+      throw new ApiError(404, "User does not exist");
+    }
+
+    const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
+      user._id
+    );
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+
+    return res
+      .status(301)
+      .cookie("jwtToken", jwtToken, options) // set the access token in the cookie
+      .cookie("refreshToken", refreshToken, options) // set the refresh token in the cookie
+      .redirect(
+        // redirect user to the frontend with access and refresh token in case user is not using cookies
+        `${process.env.CLIENT_SSO_REDIRECT_URL}`
+      );
+  }
+);
 export {
   register,
   login,
@@ -312,4 +449,7 @@ export {
   updateUserAccount,
   updateProfilePicture,
   changePassword,
+  handleSocialLogin,
+  forgotPasswordRequest,
+  resetForgottenPassword,
 };

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
-import Transaction from "../models/Transaction";
+import Transaction from "../models/transaction";
 import { IUser } from "../models/UserModel";
 import { ApiResponse } from "../utils/ApiResponse";
 import { validateTranscation } from "../utils/ValidateTransaction";

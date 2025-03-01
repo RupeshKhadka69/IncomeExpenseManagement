@@ -1,9 +1,17 @@
 import mongoose, { Document, Schema, Model, Mongoose } from "mongoose";
-import jwt from "jsonwebtoken";
+import jwt, { Secret } from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+export const UserLoginType = {
+  GOOGLE: "GOOGLE",
+  GITHUB: "GITHUB",
+  EMAIL_PASSWORD: "EMAIL_PASSWORD",
+};
+
+export const AvailableSocialLogins = Object.values(UserLoginType);
 
 interface IUser extends Document {
-  _id: mongoose.Types.ObjectId,
+  _id: mongoose.Types.ObjectId;
   username: string;
   email: string;
   password: string;
@@ -12,6 +20,10 @@ interface IUser extends Document {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateJwtToken(): string;
   generateRefreshToken(): string;
+  generateTemporaryToken(): any;
+  forgotPasswordToken: string | undefined;
+  forgotPasswordExpiry: Date | undefined;
+  loginType: string;
 }
 
 const UserSchema: Schema<IUser> = new Schema(
@@ -38,6 +50,17 @@ const UserSchema: Schema<IUser> = new Schema(
     refreshToken: {
       type: String,
     },
+    loginType: {
+      type: String,
+      enum: AvailableSocialLogins,
+      default: UserLoginType.EMAIL_PASSWORD,
+    },
+    forgotPasswordToken: {
+      type: String,
+    },
+    forgotPasswordExpiry: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
@@ -59,9 +82,9 @@ UserSchema.methods.generateJwtToken = function () {
       username: this.username,
       email: this.email,
     },
-    process.env.ACCESS_TOKEN_SECRET as string,
+    process.env.ACCESS_TOKEN_SECRET as any,
     {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY as any,
     }
   );
 };
@@ -71,11 +94,26 @@ UserSchema.methods.generateRefreshToken = function () {
     {
       _id: this._id,
     },
-    process.env.REFRESH_TOKEN_SECRET as string,
+    process.env.REFRESH_TOKEN_SECRET as any,
     {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY as any,
     }
   );
+};
+UserSchema.methods.generateTemporaryToken = function () {
+  // This token should be client facing
+  // for example: for email verification unHashedToken should go into the user's mail
+  const unHashedToken = crypto.randomBytes(20).toString("hex");
+
+  // This should stay in the DB to compare at the time of verification
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(unHashedToken)
+    .digest("hex");
+  // This is the expiry time for the token (20 minutes)
+  const tokenExpiry = Date.now() + 20 * 60 * 1000;
+
+  return { unHashedToken, hashedToken, tokenExpiry };
 };
 
 const User: Model<IUser> = mongoose.model<IUser>("User", UserSchema);
