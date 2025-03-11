@@ -26,6 +26,7 @@ const Login = () => {
     handleSubmit,
     formState: { errors },
     clearErrors,
+    setError,
     trigger,
   } = useForm({
     mode: "onChange", // Change to onChange for more responsive validation
@@ -37,8 +38,45 @@ const Login = () => {
     },
   });
 
+  const PASSWORD_REGEX = /^.{6,}$/;
   const onSubmit = async (data) => {
+    if (data?.email === "" || !emailPattern.test(data?.email)) {
+      setError("email", {
+        type: "manual",
+        message: "Please enter valid email address",
+      });
+      return;
+    }
+    if (data.password === "") {
+      setError("password", {
+        type: "manual",
+        message: "Password is required.",
+      });
+      return;
+    }
+    if (!PASSWORD_REGEX.test(data.password)) {
+      setError("password", {
+        type: "manual",
+        message: "Password must be minimum 7 characters.",
+      });
+      return;
+    }
+    if (data.password === "") {
+      setError("password", {
+        type: "manual",
+        message: "Password is required.",
+      });
+      return;
+    }
+    if (!PASSWORD_REGEX.test(data.password)) {
+      setError("password", {
+        type: "manual",
+        message: "Password must be minimum 6 characters.",
+      });
+      return;
+    }
     setLoading(true);
+
     try {
       const response = await AdminService.login({
         email: data.email,
@@ -124,13 +162,6 @@ const Login = () => {
                 id="email"
                 register={register}
                 handleChange={handleEmailChange}
-                rules={{
-                  required: "Email is required",
-                  pattern: {
-                    value: emailPattern,
-                    message: "Please enter a valid email address",
-                  },
-                }}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"
                 placeholder="Enter your email"
               />
@@ -150,13 +181,6 @@ const Login = () => {
                   name="password"
                   label="Password"
                   handleChange={handlePasswordChange}
-                  rules={{
-                    required: "Password is required",
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters",
-                    },
-                  }}
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-in-out"

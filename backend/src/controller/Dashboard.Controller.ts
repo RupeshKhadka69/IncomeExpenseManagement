@@ -5,33 +5,59 @@ import BudgetModel from "../models/BudgetModel";
 import { ApiResponse } from "../utils/ApiResponse";
 import { ApiError } from "../utils/ApiError";
 import { IUser } from "../models/UserModel";
-import mongoose from "mongoose";
+import mongoose, { DataSizeOperatorReturningNumber } from "mongoose";
 import OpenAI from "openai";
+import NodeCache from "node-cache";
 import dotenv from "dotenv";
-import axios from "axios";
 dotenv.config();
 
-// const configuration = new Configuration({
-//   apiKey: process.env.OPENAI_API_KEY, // Load from .env file
-// });
+// Initialize cache with 30 minute TTL default
+const financeCache = new NodeCache({ stdTTL: 1800, checkperiod: 600 });
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface AuthRequest extends Request {
   user?: IUser;
 }
 
-const DEEPSEEK_API_KEY = process.env.DEEP_SEEK_API_KEY; // Load from .env file
-const DEEPSEEK_API_URL = "https://openrouter.ai/api/v1"; // Replace with actual DeepSeek API endpoint
+interface ProcessedData {
+  totalIncome: number;
+  totalExpense: number;
+  savingRate: number;
+  categorySpending: Record<string, number>;
+  topCategories: [string, number][];
+  avgWeekdaySpending: number;
+  avgWeekendSpending: number;
+  highestDailySpending: { date: string; total: number };
+}
 
-// Function to get financial advice using DeepSeek's model
+// Cache key generator
+const getCacheKey = (userId: mongoose.Types.ObjectId, action: string) => {
+  return `${userId.toString()}_${action}`;
+};
+
+// Function to get financial advice using AI
 async function getFinancialAdvice(userTransactions: any[]) {
+  // Try to get from cache first
+  const cacheKey = `ai_advice_${JSON.stringify(userTransactions.map(t => ({
+    id: t._id.toString(),
+    amount: t.amount,
+    type: t.type,
+    category: t.category
+  })))}`;
+  
+  const cachedAdvice = financeCache.get(cacheKey);
+  if (cachedAdvice) {
+    return cachedAdvice as string;
+  }
+
   const totalIncome = userTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = userTransactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
-  const savingRate = ((totalIncome - totalExpense) / totalIncome) * 100;
+  const savingRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
   // Calculate expense breakdown by category
   const categoryExpenses = userTransactions
@@ -43,10 +69,10 @@ async function getFinancialAdvice(userTransactions: any[]) {
 
   // Format category expenses
   const categoryBreakdown = Object.entries(categoryExpenses)
-    .sort(([, a], [, b]) => (b as number) - (a as number)) // Add type assertions
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .map(
       ([category, amount]) =>
-        `${category}: $${(amount as number).toFixed(2)} (${(
+        `${category}: Rs${(amount as number).toFixed(2)} (${(
           ((amount as number) / totalExpense) *
           100
         ).toFixed(1)}%)`
@@ -54,146 +80,175 @@ async function getFinancialAdvice(userTransactions: any[]) {
     .join("\n  - ");
 
   const prompt = `
-You are a personalized financial advisor. Based on the following financial data:
+You are a friendly money advisor. Based on this person's spending:
 
-Financial Summary:
-- Total Income: $${totalIncome.toFixed(2)}
-- Total Expenses: $${totalExpense.toFixed(2)}
-- Current Savings Rate: ${savingRate.toFixed(2)}%
+Summary:
+- Income: Rs${totalIncome.toFixed(2)}
+- Expenses: Rs${totalExpense.toFixed(2)}
+- Savings Rate: ${savingRate.toFixed(1)}%
 
-Expense Breakdown by Category:
+Where money goes:
 - ${categoryBreakdown}
 
-Provide 3-4 specific, actionable financial advice points that are personalized to this spending pattern.
-Focus on:
-1. Optimizing their high-spending categories
-2. Maintaining or improving their savings rate
-3. Specific investment or saving strategies based on their financial situation
-4. Any potential red flags in their spending pattern
+Give 3-4 simple, practical money tips. Use everyday language that's easy to understand. Focus on:
+1. How to spend less in categories where they spend the most
+2. Simple ways to save more money
+3. Basic advice for their financial situation
+4. Point out any spending problems you notice
 
-Keep each point concise (1-3 sentences) and highly actionable. Format with bullet points.
+Keep each tip short (1-2 simple sentences). Use bullet points.
 `;
 
   const client = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: process.env.API_KEY,
   });
+
   try {
     let completion = await client.chat.completions.create({
       model: "deepseek/deepseek-r1:free",
       messages: [
         {
           role: "user",
-          content: `${prompt}`,
+          content: prompt,
         },
       ],
     });
-    console.log("completion", completion);
-    return completion.choices[0].message.content;
-    // return response?.choices[0]?.message?.content;
+
+    const advice = completion.choices[0].message.content;
+    
+    // Cache the advice for 1 hour
+    financeCache.set(cacheKey, advice, 3600);
+    
+    return advice;
   } catch (error) {
-    console.error("DeepSeek API error:", error);
-    return "AI is currently unavailable. Try again later!";
+    console.error("AI advice error:", error);
+    return "Sorry, money tips aren't available right now. Please try again later!";
   }
 }
 
-// helper to fetch recent transcation (upto one month)
+// Helper to fetch recent transactions (up to one month)
 async function fetchRecentTransaction(userId: mongoose.Types.ObjectId) {
+  const cacheKey = getCacheKey(userId, 'recent_transactions');
+  
+  // Try to get from cache first
+  const cachedTransactions = financeCache.get(cacheKey);
+  if (cachedTransactions) {
+    return cachedTransactions as any[];
+  }
+  
   const currentDate = new Date();
-  const oneMonthAgo = new Date(
-    currentDate.setMonth(currentDate.getMonth() - 1)
-  );
-  return await Transaction.find({
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  
+  const transactions = await Transaction.find({
     user: userId,
     date: { $gte: oneMonthAgo },
-  });
+  }).lean();
+  
+  // Cache for 15 minutes
+  financeCache.set(cacheKey, transactions, 900);
+  
+  return transactions;
 }
 
-function calculateTotal(trans: any[], type: string): number {
-  return trans
-    .filter((t) => t.type === type)
-    .reduce((sum, t) => sum + t.amount, 0);
-}
-// helper function to analyze income and expense
-async function analyzeIncomeExpense(
-  trans: any[],
-  insights: string[],
-  sugg: string[]
-) {
-  const totalIncome = calculateTotal(trans, "income");
-  const totalExpense = calculateTotal(trans, "expense");
-  const savingRate = (totalIncome - totalExpense) / totalIncome;
-  if (savingRate < 0.2) {
-    insights.push(
-      `your saving rate is currently ${Math.round(
-        savingRate * 100
-      )}%, below the recommended 20%  `
-    );
-    sugg.push(
-      `Consider reducing non-essential expense or seeking additional income. Aim for 20-30% saving rate.`
-    );
-  } else {
-    insights.push(
-      `Good job! Your savings rate is a healthy ${Math.round(
-        savingRate * 100
-      )}%.`
-    );
-  }
-}
-function calculateCategorySpending(trans: any[]): Record<string, number> {
-  return trans.reduce((acc, t) => {
-    if (t.type === "expense") {
-      acc[t.category] = (acc[t.category] || 0) + t.amount;
+// Process all transaction data efficiently
+function processTransactionData(transactions: any[]): ProcessedData {
+  const processingStartTime = Date.now();
+  
+  // Reduce over the transactions array just once
+  const { totalIncome, totalExpense, categorySpending, dailySpending, 
+          weekdaySpending, weekendSpending } = transactions.reduce(
+    (acc, t) => {
+      // Process income/expense totals
+      if (t.type === "income") {
+        acc.totalIncome += t.amount;
+      } else if (t.type === "expense") {
+        acc.totalExpense += t.amount;
+        
+        // Process category data
+        acc.categorySpending[t.category] = (acc.categorySpending[t.category] || 0) + t.amount;
+        
+        // Process date-based data
+        const date = new Date(t.date);
+        const dateStr = date.toISOString().split('T')[0];
+        acc.dailySpending[dateStr] = (acc.dailySpending[dateStr] || 0) + t.amount;
+        
+        // Process day of week
+        const day = date.getDay();
+        if (day === 0 || day === 6) {
+          acc.weekendSpending.push(t.amount);
+        } else {
+          acc.weekdaySpending.push(t.amount);
+        }
+      }
+      
+      return acc;
+    },
+    { 
+      totalIncome: 0, 
+      totalExpense: 0, 
+      categorySpending: {} as Record<string, number>, 
+      dailySpending: {} as Record<string, number>,
+      weekdaySpending: [] as number[],
+      weekendSpending: [] as number[]
     }
-    return acc;
-  }, {} as Record<string, number>);
-}
-
-function calculateTotalForCategory(
-  transaction: any[],
-  category: string,
-  type: string
-): number {
-  return transaction
-    .filter((t) => t.type === type && t.category === category)
-    .reduce((sum, t) => sum + t.amount, 0);
-}
-// helper function to analyze spending category
-async function analyzeSpendingCategories(trans: any[], insights: any[]) {
-  const categorySpending = calculateCategorySpending(trans);
-  const topCategories = Object.entries(categorySpending)
-    .sort(([, amountA], [, amountB]) => amountB - amountA)
+  );
+  
+  // Calculate saving rate
+  const savingRate = totalIncome > 0 ? (totalIncome - totalExpense) / totalIncome : 0;
+  
+  // Sort categories by spending (only once)
+  const topCategories:any = Object.entries(categorySpending)
+    .sort(([, a], [, b]) => (b as number)- (a as number))
     .slice(0, 3);
-  if (topCategories.length > 0) {
-    insights.push(
-      `Top spending categories: ${topCategories
-        .map(([category, amount]) => `${category} ($${amount.toFixed(2)})`)
-        .join(", ")}`
-    );
-  }
+    
+  // Calculate averages
+  const avgWeekdaySpending = weekdaySpending.length > 0 
+    ? weekdaySpending.reduce((sum:number, amt:number) => sum + amt, 0) / weekdaySpending.length 
+    : 0;
+    
+  const avgWeekendSpending = weekendSpending.length > 0
+    ? weekendSpending.reduce((sum:number, amt:number) => sum + amt, 0) / weekendSpending.length
+    : 0;
+    
+    const sortedDailyTotals = Object.entries(dailySpending)
+    .map(([date, total]) => ({ date, total: total as number }))
+    .sort((a, b) => b.total - a.total);
+  
+  console.log(`Processing completed in ${Date.now() - processingStartTime}ms`);  
+  
+  return {
+    totalIncome,
+    totalExpense,
+    savingRate,
+    categorySpending,
+    topCategories,
+    avgWeekdaySpending,
+    avgWeekendSpending, // Note: fixed typo 'avgWeekendSupending'
+    highestDailySpending: sortedDailyTotals[0] || { date: "", total: 0 }
+  };
 }
 
-function analyzeBudgetAdherence(
-  transaction: any[],
-  budgets: any[],
-  insights: string[],
-  suggestions: any[]
+// Check budget adherence
+function checkBudgetAdherence(
+  categorySpending: Record<string, number>, 
+  budgets: any[], 
+  insights: string[], 
+  suggestions: string[]
 ) {
-  budgets.forEach((budget) => {
+  budgets.forEach((budget: any) => {
     if (!budget.category) return;
-    const categoryExpenses = calculateTotalForCategory(
-      transaction,
-      budget.category,
-      "expense"
-    );
-
-    if (categoryExpenses > budget.amount) {
-      const overspendAmount = (categoryExpenses - budget.amount).toFixed(2);
+    
+    const categoryExpense = categorySpending[budget.category] || 0;
+    
+    if (categoryExpense > budget.amount) {
+      const overspendAmount = (categoryExpense - budget.amount).toFixed(2);
       insights.push(
-        `You've exceeded your budget for ${budget.category} by $${overspendAmount}.`
+        `You've exceeded your budget for ${budget.category} by Rs${overspendAmount}.`
       );
       suggestions.push(
-        `Consider adjusting expenses in the ${budget.category} category or reallocating funds.`
+        `Consider cutting back on ${budget.category} expenses or updating your budget.`
       );
     } else {
       insights.push(
@@ -202,6 +257,178 @@ function analyzeBudgetAdherence(
     }
   });
 }
+
+// Analyze spending patterns
+function analyzeSpendingPatterns(data: ProcessedData, insights: string[], suggestions: string[]) {
+  // Check for high spending days
+  if (data.highestDailySpending.total > 1000) {
+    insights.push(
+      `You had high spending of Rs${data.highestDailySpending.total.toFixed(2)} on ${
+        data.highestDailySpending.date
+      }.`
+    );
+    suggestions.push(
+      "Review your high-spending days to identify potential areas for saving."
+    );
+  }
+  
+  // Compare weekend vs weekday spending
+  if (data.avgWeekendSpending > data.avgWeekdaySpending * 1.5) {
+    insights.push(
+      `Your weekend spending (Rs${data.avgWeekendSpending.toFixed(
+        2
+      )}/day) is much higher than weekday spending (Rs${data.avgWeekdaySpending.toFixed(
+        2
+      )}/day).`
+    );
+    suggestions.push(
+      "Try planning more budget-friendly weekend activities."
+    );
+  }
+}
+
+// Add general advice
+function addGeneralAdvice(suggestions: string[]) {
+  suggestions.push(
+    "Consider establishing an emergency fund for at least 3-6 months of expenses.",
+    "Review your budgets regularly to adapt to any changes in income or spending patterns.",
+    "Explore opportunities for income growth, such as skill development or side projects."
+  );
+}
+
+// Optimized analyze finance endpoint
+const analyzeFinance = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const startTime = Date.now();
+  
+  if (!req.user) {
+    return res.status(401).json(new ApiError(401, "Unauthorized access"));
+  }
+
+  const userId = req.user._id;
+  
+  // Check if we have a cached analysis result
+  const cacheKey = getCacheKey(userId, 'finance_analysis');
+  const cachedAnalysis = financeCache.get(cacheKey);
+  
+  if (cachedAnalysis) {
+    console.log(`Using cached finance analysis (took ${Date.now() - startTime}ms)`);
+    return res.status(200).json(
+      new ApiResponse(200, cachedAnalysis, "Financial advice generated (cached)")
+    );
+  }
+  
+  console.log("Cache miss, generating fresh analysis");
+
+  // Fetch data in parallel
+  const [recentTransactions, userBudgets] = await Promise.all([
+    fetchRecentTransaction(userId),
+    BudgetModel.find({ user: userId }).lean(),
+  ]);
+
+  // Process transactions - efficient, single-pass operation
+  const processedData = processTransactionData(recentTransactions);
+
+  // Generate insights and suggestions based on processed data
+  const insights: string[] = [];
+  const suggestions: string[] = [];
+
+  // Add savings rate insights
+  if (processedData.savingRate < 0.2) {
+    insights.push(
+      `Your saving rate is currently ${Math.round(
+        processedData.savingRate * 100
+      )}%, below the recommended 20%`
+    );
+    suggestions.push(
+      `Consider reducing non-essential expenses or finding additional income. Aim for 20-30% savings.`
+    );
+  } else {
+    insights.push(
+      `Good job! Your savings rate is a healthy ${Math.round(
+        processedData.savingRate * 100
+      )}%.`
+    );
+  }
+
+  // Add top spending categories
+  if (processedData.topCategories.length > 0) {
+    insights.push(
+      `Top spending categories: ${processedData.topCategories
+        .map(([category, amount]) => `${category} (Rs${(amount as number).toFixed(2)})`)
+        .join(", ")}`
+    );
+  }
+
+  // Check budget adherence
+  if (userBudgets.length > 0) {
+    checkBudgetAdherence(
+      processedData.categorySpending,
+      userBudgets,
+      insights,
+      suggestions
+    );
+  } else {
+    suggestions.push(
+      "Consider setting up budgets for your main spending categories to better track your finances."
+    );
+  }
+
+  // Add general advice if needed
+  if (suggestions.length < 2) {
+    addGeneralAdvice(suggestions);
+  }
+
+  // Analyze spending trends
+  analyzeSpendingPatterns(processedData, insights, suggestions);
+
+  // Get AI advice with a timeout to prevent long waits
+  let aiAdvice: string;
+  try {
+    // Set a timeout for the AI advice to prevent long waits
+    const timeoutPromise = new Promise<string>((_, reject) => {
+      setTimeout(() => reject(new Error("AI advice timed out")), 200000);
+    });
+    
+    const advicePromise = getFinancialAdvice(recentTransactions);
+    aiAdvice = await Promise.race([advicePromise, timeoutPromise]) as string;
+  } catch (error) {
+    console.error("Error getting AI advice:", error);
+    aiAdvice = "AI tips currently unavailable. Here are our standard suggestions.";
+  }
+
+  // Create the final response
+  const analysisResult = { insights, suggestions, aiAdvice };
+  
+  // Cache the result for 15 minutes
+  financeCache.set(cacheKey, analysisResult, 900);
+  
+  const elapsedTime = Date.now() - startTime;
+  console.log(`Finance analysis completed in ${elapsedTime}ms`);
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      analysisResult,
+      `Financial advice generated in ${elapsedTime}ms`
+    )
+  );
+});
+
+// Cache invalidation middleware for when transactions change
+const invalidateFinanceCache = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user) {
+    const userId = req.user._id;
+    const recentTransactionsKey = getCacheKey(userId, 'recent_transactions');
+    const financeAnalysisKey = getCacheKey(userId, 'finance_analysis');
+    
+    // Delete the cached analyses
+    financeCache.del(recentTransactionsKey);
+    financeCache.del(financeAnalysisKey);
+    
+    console.log(`Cache invalidated for user ${userId}`);
+  }
+  next();
+});
 
 const IncomeExpenseList = asyncHandler(
   async (req: AuthRequest, res: Response) => {
@@ -236,145 +463,11 @@ const IncomeExpenseList = asyncHandler(
     res.status(200).json(new ApiResponse(200, income_expense_list));
   }
 );
-function addGeneralAdvice(suggestions: string[]) {
-  suggestions.push(
-    "Consider establishing an emergency fund for at least 3-6 months of expenses.",
-    "Review your budgets regularly to adapt to any changes in income or spending patterns.",
-    "Explore opportunities for income growth, such as skill development or side projects."
-  );
+function calculateTotal(trans: any[], type: string): number {
+  return trans
+    .filter((t) => t.type === type)
+    .reduce((sum, t) => sum + t.amount, 0);
 }
-const analyzeFinance = asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (!req.user) {
-    return res.status(401).json(new ApiError(401, "Unauthorized access"));
-  }
-
-  const userId = req.user._id;
-  const recentTransactions = await fetchRecentTransaction(userId);
-
-  // Get user's budgets to check adherence
-  const userBudgets = await BudgetModel.find({ user: userId });
-
-  const insights: string[] = [];
-  const suggestions: string[] = [];
-
-  // Analyze income/expense and add initial insights
-  await analyzeIncomeExpense(recentTransactions, insights, suggestions);
-
-  // Analyze spending categories
-  await analyzeSpendingCategories(recentTransactions, insights);
-
-  // Check budget adherence
-  if (userBudgets.length > 0) {
-    analyzeBudgetAdherence(
-      recentTransactions,
-      userBudgets,
-      insights,
-      suggestions
-    );
-  } else {
-    suggestions.push(
-      "Consider setting up budgets for your main spending categories to better track your finances."
-    );
-  }
-
-  // Add general financial advice even if everything looks good
-  if (suggestions.length < 2) {
-    addGeneralAdvice(suggestions);
-  }
-
-  // Look for unusual spending patterns
-  await analyzeSpendingTrends(recentTransactions, insights, suggestions);
-
-  // Get AI-generated financial advice
-  const aiAdvice = await getFinancialAdvice(recentTransactions);
-
-  res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { insights, suggestions, aiAdvice },
-        "Financial advice generated"
-      )
-    );
-});
-
-// Add this new function to analyze spending trends
-async function analyzeSpendingTrends(
-  transactions: any[],
-  insights: string[],
-  suggestions: string[]
-) {
-  // Group transactions by date to identify patterns
-  const transactionsByDate = transactions.reduce((acc, t) => {
-    const dateStr = new Date(t.date).toISOString().split("T")[0];
-    if (!acc[dateStr]) {
-      acc[dateStr] = [];
-    }
-    acc[dateStr].push(t);
-    return acc;
-  }, {});
-
-  // Look for days with unusually high spending
-  const dailyTotals = Object.entries(transactionsByDate).map(([date, txs]) => {
-    const total = (txs as any[]).reduce(
-      (sum, t) => (t.type === "expense" ? sum + t.amount : sum),
-      0
-    );
-    return { date, total };
-  });
-
-  // Sort by total spending (highest first)
-  dailyTotals.sort((a, b) => b.total - a.total);
-
-  if (dailyTotals.length > 0 && dailyTotals[0].total > 1000) {
-    insights.push(
-      `You had high spending of $${dailyTotals[0].total.toFixed(2)} on ${
-        dailyTotals[0].date
-      }.`
-    );
-    suggestions.push(
-      "Review your high-spending days to identify potential areas for saving."
-    );
-  }
-
-  // Analyze weekend vs weekday spending
-  const weekdaySpending: number[] = [];
-  const weekendSpending: number[] = [];
-
-  dailyTotals.forEach(({ date, total }) => {
-    const day = new Date(date).getDay();
-    if (day === 0 || day === 6) {
-      // weekend (0=Sunday, 6=Saturday)
-      weekendSpending.push(total);
-    } else {
-      weekdaySpending.push(total);
-    }
-  });
-
-  const avgWeekdaySpending = weekdaySpending.length
-    ? weekdaySpending.reduce((sum, amt) => sum + amt, 0) /
-      weekdaySpending.length
-    : 0;
-  const avgWeekendSpending = weekendSpending.length
-    ? weekendSpending.reduce((sum, amt) => sum + amt, 0) /
-      weekendSpending.length
-    : 0;
-
-  if (avgWeekendSpending > avgWeekdaySpending * 1.5) {
-    insights.push(
-      `Your weekend spending ($${avgWeekendSpending.toFixed(
-        2
-      )}/day) is significantly higher than weekday spending ($${avgWeekdaySpending.toFixed(
-        2
-      )}/day).`
-    );
-    suggestions.push(
-      "Consider planning weekend activities that are budget-friendly to reduce weekend overspending."
-    );
-  }
-}
-// Add to your controller file
 const generateFinancialForecast = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     if (!req.user) {
@@ -441,5 +534,9 @@ const generateFinancialForecast = asyncHandler(
       );
   }
 );
-
-export { IncomeExpenseList, analyzeFinance, generateFinancialForecast };
+export { 
+  IncomeExpenseList, 
+  analyzeFinance, 
+  generateFinancialForecast,
+  invalidateFinanceCache 
+};

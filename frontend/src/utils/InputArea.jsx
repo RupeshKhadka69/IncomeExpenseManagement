@@ -53,7 +53,7 @@ const InputArea = ({
       min={min}
       step={step}
       autoCapitalize={autoCapitalize}
-      className={`flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`border-[1px] border-gray-400 !rounded-lg dark:border-gray-400 focus:ring-2 focus:ring-primary focus:border-primary pl-2 pt-2 text-sm focus:outline-none block w-full dark:bg-slate-800 focus:bg-white form-input  dark:text-gray-200  ${className}`}
     />
   );
 };

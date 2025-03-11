@@ -14,7 +14,10 @@ import { RxCross2 } from "react-icons/rx";
 import LabelArea from "../form/LabelArea";
 import InputDate from "../form/InputDate";
 import TextArea from "../form/TextArea";
+import SelectArea from "../form/SelectArea";
+import AntdRadio from "../form/RadioButton";
 import IncomeServices from "../../services/IncomeService";
+
 const AddIncome = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -69,6 +72,7 @@ const AddIncome = () => {
       amount: "",
       category: "",
       date: "",
+      recurrenceInterval: "",
       description: "",
     });
   };
@@ -90,7 +94,7 @@ const AddIncome = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-5 mt-2 gap-2">
+        <div className="grid grid-cols-5 mt-2 gap-2 ">
           <LabelArea label="Name:" />
           <div className="col-span-2">
             <InputArea register={register} name="name" />
@@ -134,10 +138,50 @@ const AddIncome = () => {
             <TextArea register={register} name="description" />
           </div>
         </div>
+        <div className="grid grid-cols-5 mt-2 gap-2 items-start">
+          <div className="self-start pt-1">
+            <LabelArea label="Is Recurring:" />
+          </div>
+          <div className="col-span-2">
+            <AntdRadio
+              value={[
+                { id: true, name: "Yes" },
+                { id: false, name: "No" },
+              ]}
+              name="isRecurring"
+              control={control}
+              defaultValue={false}
+              errors={errors}
+              required
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-5 mt-2 gap-2 items-start">
+          <div className="self-start pt-1">
+            <LabelArea label="Recurring Interval:" />
+          </div>
+          <div className="col-span-2">
+            {/* <TextArea register={register} name="description" /> */}
+            <SelectArea
+              name="recurrenceInterval"
+              register={register}
+              optionList={[
+                { id: "daily", name: "daily" },
+                { id: "weekly", name: "weekly" },
+                { id: "monthly", name: "monthly" },
+                { id: "yearly", name: "yearly" },
+              ]}
+            />
+          </div>
+        </div>
         <div className="grid grid-cols-5 mt-8 gap-2">
           <div className="col-span-3 flex justify-end">
             <Button>
-              <input type="submit" value={id ? "Edit" : "Add"} className="cursor-pointer" />
+              <input
+                type="submit"
+                value={id ? "Edit" : "Add"}
+                className="cursor-pointer"
+              />
             </Button>
           </div>
         </div>
