@@ -15,7 +15,7 @@ interface AuthRequest extends Request {
 const generateJwtAndRefreshToken = async (userId: mongoose.Types.ObjectId) => {
   try {
     const user = await User.findById(userId);
-
+ console.log("user",user);
     if (!user) {
       throw new ApiError(404, "User not found");
     }
@@ -28,29 +28,30 @@ const generateJwtAndRefreshToken = async (userId: mongoose.Types.ObjectId) => {
 
     return { jwtToken, refreshToken };
   } catch (err) {
+    console.log("eror from generateJwtAndRefreshToken ",err)
     throw new ApiError(400, "something went wrong while generating token");
   }
 };
 const register = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { username, email, password } = req.body;
+    console.log("username", username);
     if (
       !username ||
       !email ||
       !password ||
       [username, email, password].some((field) => field.trim() === "")
     ) {
-      throw new ApiError(400, "Username, email, and password are required");
+      res
+        .status(402)
+        .json(new ApiError(402, {}, "email username and password is required"));
     }
 
     const existedUser = await User.findOne({
       $or: [{ username }, { email }],
     });
     if (existedUser) {
-      throw new ApiError(
-        400,
-        "User already exists with this username or email"
-      );
+      res.status(402).json(new ApiError(402, {}, "user already exits"));
     }
 
     let local_profile_picture = "";
@@ -78,7 +79,11 @@ const register = asyncHandler(
     );
 
     if (!createdUser) {
-      throw new ApiError(500, "Something went wrong in registering the user");
+      res
+        .status(500)
+        .json(
+          new ApiError(500, {}, "Something went wrong in registering the user")
+        );
     }
 
     return res
@@ -89,23 +94,29 @@ const register = asyncHandler(
 const login = asyncHandler(async (req: Request, res: Response) => {
   // get data -> validata data -> find user -> check password -> access and refresh token -> send cookie and data
   const { email, password } = req.body;
+  console.log("email",email);
   if (!email && !password) {
-    throw new ApiError(400, "email and password is required");
+    return res
+      .status(200)
+      .json(new ApiError(400, "", "email and password is required"));
   }
   const isUser = await User.findOne({ email });
   if (!isUser) {
     return res
-      .status(200)
-      .json(new ApiError(400, "", "user doesnot exits with this email"));
+    .status(200)
+    .json(new ApiError(400, "", "user doesnot exits with this email"));
   }
   const isPasswordCorrect = await isUser.isPasswordCorrect(password);
   if (!isPasswordCorrect) {
     return res.status(401).json(new ApiError(401, "", "Password is incorrect"));
   }
-
+  
+  console.log("isPasswordCorrect", isPasswordCorrect)
   const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
     isUser._id as mongoose.Types.ObjectId
   );
+  console.log("jwtToken",jwtToken)
+  console.log("refreshToken",refreshToken)
   const options = {
     httpOnly: true,
     secure: true,
@@ -365,6 +376,8 @@ const resetForgottenPassword = asyncHandler(
   async (req: AuthRequest, res: Response) => {
     const { resetToken } = req.params;
     const { newPassword } = req.body;
+    console.log("newpaasswor",newPassword)
+    console.log("resetToken",resetToken)
 
     // Create a hash of the incoming reset token
 
@@ -384,7 +397,8 @@ const resetForgottenPassword = asyncHandler(
 
     // If either of the one is false that means the token is invalid or expired
     if (!user) {
-      throw new ApiError(489, "Token is invalid or expired");
+      console.log("token is invalid")
+     return res.status(489).json(new ApiError(489,{}, "Token is invalid or expired"));
     }
 
     // if everything is ok and token id valid
@@ -394,7 +408,7 @@ const resetForgottenPassword = asyncHandler(
 
     // Set the provided password as the new password
     user.password = newPassword;
-     await user.save({ validateBeforeSave: false });
+    await user.save({ validateBeforeSave: false });
     const { jwtToken, refreshToken } = await generateJwtAndRefreshToken(
       user._id
     );
@@ -408,7 +422,9 @@ const resetForgottenPassword = asyncHandler(
       .status(200)
       .cookie("jwtToken", jwtToken, options) // set the access token in the cookie
       .cookie("refreshToken", refreshToken, options) // set the refresh token in the cookie
-      .json(new ApiResponse(200,{user,jwtToken}, "Password reset successfully"));
+      .json(
+        new ApiResponse(200, { user, jwtToken }, "Password reset successfully")
+      );
   }
 );
 
