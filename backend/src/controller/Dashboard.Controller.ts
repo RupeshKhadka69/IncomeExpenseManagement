@@ -39,13 +39,15 @@ const getCacheKey = (userId: mongoose.Types.ObjectId, action: string) => {
 // Function to get financial advice using AI
 async function getFinancialAdvice(userTransactions: any[]) {
   // Try to get from cache first
-  const cacheKey = `ai_advice_${JSON.stringify(userTransactions.map(t => ({
-    id: t._id.toString(),
-    amount: t.amount,
-    type: t.type,
-    category: t.category
-  })))}`;
-  
+  const cacheKey = `ai_advice_${JSON.stringify(
+    userTransactions.map((t) => ({
+      id: t._id.toString(),
+      amount: t.amount,
+      type: t.type,
+      category: t.category,
+    }))
+  )}`;
+
   const cachedAdvice = financeCache.get(cacheKey);
   if (cachedAdvice) {
     return cachedAdvice as string;
@@ -57,7 +59,8 @@ async function getFinancialAdvice(userTransactions: any[]) {
   const totalExpense = userTransactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
-  const savingRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
+  const savingRate =
+    totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
   // Calculate expense breakdown by category
   const categoryExpenses = userTransactions
@@ -116,10 +119,10 @@ Keep each tip short (1-2 simple sentences). Use bullet points.
     });
 
     const advice = completion.choices[0].message.content;
-    
+
     // Cache the advice for 1 hour
     financeCache.set(cacheKey, advice, 3600);
-    
+
     return advice;
   } catch (error) {
     console.error("AI advice error:", error);
@@ -129,51 +132,59 @@ Keep each tip short (1-2 simple sentences). Use bullet points.
 
 // Helper to fetch recent transactions (up to one month)
 async function fetchRecentTransaction(userId: mongoose.Types.ObjectId) {
-  const cacheKey = getCacheKey(userId, 'recent_transactions');
-  
+  const cacheKey = getCacheKey(userId, "recent_transactions");
+
   // Try to get from cache first
   const cachedTransactions = financeCache.get(cacheKey);
   if (cachedTransactions) {
     return cachedTransactions as any[];
   }
-  
+
   const currentDate = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-  
+
   const transactions = await Transaction.find({
     user: userId,
     date: { $gte: oneMonthAgo },
   }).lean();
-  
+
   // Cache for 15 minutes
   financeCache.set(cacheKey, transactions, 900);
-  
+
   return transactions;
 }
 
 // Process all transaction data efficiently
 function processTransactionData(transactions: any[]): ProcessedData {
   const processingStartTime = Date.now();
-  
+
   // Reduce over the transactions array just once
-  const { totalIncome, totalExpense, categorySpending, dailySpending, 
-          weekdaySpending, weekendSpending } = transactions.reduce(
+  const {
+    totalIncome,
+    totalExpense,
+    categorySpending,
+    dailySpending,
+    weekdaySpending,
+    weekendSpending,
+  } = transactions.reduce(
     (acc, t) => {
       // Process income/expense totals
       if (t.type === "income") {
         acc.totalIncome += t.amount;
       } else if (t.type === "expense") {
         acc.totalExpense += t.amount;
-        
+
         // Process category data
-        acc.categorySpending[t.category] = (acc.categorySpending[t.category] || 0) + t.amount;
-        
+        acc.categorySpending[t.category] =
+          (acc.categorySpending[t.category] || 0) + t.amount;
+
         // Process date-based data
         const date = new Date(t.date);
-        const dateStr = date.toISOString().split('T')[0];
-        acc.dailySpending[dateStr] = (acc.dailySpending[dateStr] || 0) + t.amount;
-        
+        const dateStr = date.toISOString().split("T")[0];
+        acc.dailySpending[dateStr] =
+          (acc.dailySpending[dateStr] || 0) + t.amount;
+
         // Process day of week
         const day = date.getDay();
         if (day === 0 || day === 6) {
@@ -182,42 +193,47 @@ function processTransactionData(transactions: any[]): ProcessedData {
           acc.weekdaySpending.push(t.amount);
         }
       }
-      
+
       return acc;
     },
-    { 
-      totalIncome: 0, 
-      totalExpense: 0, 
-      categorySpending: {} as Record<string, number>, 
+    {
+      totalIncome: 0,
+      totalExpense: 0,
+      categorySpending: {} as Record<string, number>,
       dailySpending: {} as Record<string, number>,
       weekdaySpending: [] as number[],
-      weekendSpending: [] as number[]
+      weekendSpending: [] as number[],
     }
   );
-  
+
   // Calculate saving rate
-  const savingRate = totalIncome > 0 ? (totalIncome - totalExpense) / totalIncome : 0;
-  
+  const savingRate =
+    totalIncome > 0 ? (totalIncome - totalExpense) / totalIncome : 0;
+
   // Sort categories by spending (only once)
-  const topCategories:any = Object.entries(categorySpending)
-    .sort(([, a], [, b]) => (b as number)- (a as number))
+  const topCategories: any = Object.entries(categorySpending)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 3);
-    
+
   // Calculate averages
-  const avgWeekdaySpending = weekdaySpending.length > 0 
-    ? weekdaySpending.reduce((sum:number, amt:number) => sum + amt, 0) / weekdaySpending.length 
-    : 0;
-    
-  const avgWeekendSpending = weekendSpending.length > 0
-    ? weekendSpending.reduce((sum:number, amt:number) => sum + amt, 0) / weekendSpending.length
-    : 0;
-    
-    const sortedDailyTotals = Object.entries(dailySpending)
+  const avgWeekdaySpending =
+    weekdaySpending.length > 0
+      ? weekdaySpending.reduce((sum: number, amt: number) => sum + amt, 0) /
+        weekdaySpending.length
+      : 0;
+
+  const avgWeekendSpending =
+    weekendSpending.length > 0
+      ? weekendSpending.reduce((sum: number, amt: number) => sum + amt, 0) /
+        weekendSpending.length
+      : 0;
+
+  const sortedDailyTotals = Object.entries(dailySpending)
     .map(([date, total]) => ({ date, total: total as number }))
     .sort((a, b) => b.total - a.total);
-  
-  console.log(`Processing completed in ${Date.now() - processingStartTime}ms`);  
-  
+
+  console.log(`Processing completed in ${Date.now() - processingStartTime}ms`);
+
   return {
     totalIncome,
     totalExpense,
@@ -226,22 +242,22 @@ function processTransactionData(transactions: any[]): ProcessedData {
     topCategories,
     avgWeekdaySpending,
     avgWeekendSpending, // Note: fixed typo 'avgWeekendSupending'
-    highestDailySpending: sortedDailyTotals[0] || { date: "", total: 0 }
+    highestDailySpending: sortedDailyTotals[0] || { date: "", total: 0 },
   };
 }
 
 // Check budget adherence
 function checkBudgetAdherence(
-  categorySpending: Record<string, number>, 
-  budgets: any[], 
-  insights: string[], 
+  categorySpending: Record<string, number>,
+  budgets: any[],
+  insights: string[],
   suggestions: string[]
 ) {
   budgets.forEach((budget: any) => {
     if (!budget.category) return;
-    
+
     const categoryExpense = categorySpending[budget.category] || 0;
-    
+
     if (categoryExpense > budget.amount) {
       const overspendAmount = (categoryExpense - budget.amount).toFixed(2);
       insights.push(
@@ -259,19 +275,23 @@ function checkBudgetAdherence(
 }
 
 // Analyze spending patterns
-function analyzeSpendingPatterns(data: ProcessedData, insights: string[], suggestions: string[]) {
+function analyzeSpendingPatterns(
+  data: ProcessedData,
+  insights: string[],
+  suggestions: string[]
+) {
   // Check for high spending days
   if (data.highestDailySpending.total > 1000) {
     insights.push(
-      `You had high spending of Rs${data.highestDailySpending.total.toFixed(2)} on ${
-        data.highestDailySpending.date
-      }.`
+      `You had high spending of Rs${data.highestDailySpending.total.toFixed(
+        2
+      )} on ${data.highestDailySpending.date}.`
     );
     suggestions.push(
       "Review your high-spending days to identify potential areas for saving."
     );
   }
-  
+
   // Compare weekend vs weekday spending
   if (data.avgWeekendSpending > data.avgWeekdaySpending * 1.5) {
     insights.push(
@@ -281,9 +301,7 @@ function analyzeSpendingPatterns(data: ProcessedData, insights: string[], sugges
         2
       )}/day).`
     );
-    suggestions.push(
-      "Try planning more budget-friendly weekend activities."
-    );
+    suggestions.push("Try planning more budget-friendly weekend activities.");
   }
 }
 
@@ -299,24 +317,32 @@ function addGeneralAdvice(suggestions: string[]) {
 // Optimized analyze finance endpoint
 const analyzeFinance = asyncHandler(async (req: AuthRequest, res: Response) => {
   const startTime = Date.now();
-  
+
   if (!req.user) {
     return res.status(401).json(new ApiError(401, "Unauthorized access"));
   }
 
   const userId = req.user._id;
-  
+
   // Check if we have a cached analysis result
-  const cacheKey = getCacheKey(userId, 'finance_analysis');
+  const cacheKey = getCacheKey(userId, "finance_analysis");
   const cachedAnalysis = financeCache.get(cacheKey);
-  
+
   if (cachedAnalysis) {
-    console.log(`Using cached finance analysis (took ${Date.now() - startTime}ms)`);
-    return res.status(200).json(
-      new ApiResponse(200, cachedAnalysis, "Financial advice generated (cached)")
+    console.log(
+      `Using cached finance analysis (took ${Date.now() - startTime}ms)`
     );
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          cachedAnalysis,
+          "Financial advice generated (cached)"
+        )
+      );
   }
-  
+
   console.log("Cache miss, generating fresh analysis");
 
   // Fetch data in parallel
@@ -354,7 +380,10 @@ const analyzeFinance = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (processedData.topCategories.length > 0) {
     insights.push(
       `Top spending categories: ${processedData.topCategories
-        .map(([category, amount]) => `${category} (Rs${(amount as number).toFixed(2)})`)
+        .map(
+          ([category, amount]) =>
+            `${category} (Rs${(amount as number).toFixed(2)})`
+        )
         .join(", ")}`
     );
   }
@@ -388,47 +417,52 @@ const analyzeFinance = asyncHandler(async (req: AuthRequest, res: Response) => {
     const timeoutPromise = new Promise<string>((_, reject) => {
       setTimeout(() => reject(new Error("AI advice timed out")), 200000);
     });
-    
+
     const advicePromise = getFinancialAdvice(recentTransactions);
-    aiAdvice = await Promise.race([advicePromise, timeoutPromise]) as string;
+    aiAdvice = (await Promise.race([advicePromise, timeoutPromise])) as string;
   } catch (error) {
     console.error("Error getting AI advice:", error);
-    aiAdvice = "AI tips currently unavailable. Here are our standard suggestions.";
+    aiAdvice =
+      "AI tips currently unavailable. Here are our standard suggestions.";
   }
 
   // Create the final response
   const analysisResult = { insights, suggestions, aiAdvice };
-  
+
   // Cache the result for 15 minutes
   financeCache.set(cacheKey, analysisResult, 900);
-  
+
   const elapsedTime = Date.now() - startTime;
   console.log(`Finance analysis completed in ${elapsedTime}ms`);
 
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      analysisResult,
-      `Financial advice generated in ${elapsedTime}ms`
-    )
-  );
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        analysisResult,
+        `Financial advice generated in ${elapsedTime}ms`
+      )
+    );
 });
 
 // Cache invalidation middleware for when transactions change
-const invalidateFinanceCache = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (req.user) {
-    const userId = req.user._id;
-    const recentTransactionsKey = getCacheKey(userId, 'recent_transactions');
-    const financeAnalysisKey = getCacheKey(userId, 'finance_analysis');
-    
-    // Delete the cached analyses
-    financeCache.del(recentTransactionsKey);
-    financeCache.del(financeAnalysisKey);
-    
-    console.log(`Cache invalidated for user ${userId}`);
+const invalidateFinanceCache = asyncHandler(
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (req.user) {
+      const userId = req.user._id;
+      const recentTransactionsKey = getCacheKey(userId, "recent_transactions");
+      const financeAnalysisKey = getCacheKey(userId, "finance_analysis");
+
+      // Delete the cached analyses
+      financeCache.del(recentTransactionsKey);
+      financeCache.del(financeAnalysisKey);
+
+      console.log(`Cache invalidated for user ${userId}`);
+    }
+    next();
   }
-  next();
-});
+);
 
 const IncomeExpenseList = asyncHandler(
   async (req: AuthRequest, res: Response) => {
@@ -534,9 +568,9 @@ const generateFinancialForecast = asyncHandler(
       );
   }
 );
-export { 
-  IncomeExpenseList, 
-  analyzeFinance, 
+export {
+  IncomeExpenseList,
+  analyzeFinance,
   generateFinancialForecast,
-  invalidateFinanceCache 
+  invalidateFinanceCache,
 };

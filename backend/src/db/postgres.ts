@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import createBlogTables from "./schema"
 
 const dbConfig = {
   user: "postgres",
@@ -13,6 +14,7 @@ const client = new Client(dbConfig);
 client
   .connect()
   .then(() => {
+    createBlogTables();
     console.log("PostgreSQL database connected");
   })
   .catch((err) => {
