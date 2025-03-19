@@ -207,7 +207,6 @@ const GoalDetail = () => {
       },
     },
   };
-console.log("chartData",chartData)
   return (
     <>
       <div className="px-8 py-6">
