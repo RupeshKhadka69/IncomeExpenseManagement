@@ -31,7 +31,6 @@ const configureAxios = () => {
   // checking response after request
   instance.interceptors.response.use(
     (response) => {
-      console.log("response",response)
       return response;
     },
     (error) => {

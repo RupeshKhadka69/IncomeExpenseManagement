@@ -20,7 +20,6 @@ const ResetPassword = () => {
   const { dispatch } = useContext(AdminContext);
 
   const { resetToken } = useParams();
-  console.log("resetToken", resetToken);
   const navigate = useNavigate();
 
   const {
@@ -61,12 +60,14 @@ const ResetPassword = () => {
     setConfirmPassword(e.target.value);
     setValue("confirmPassword", e.target.value);
   };
+  console.log("errors",errors)
   const onSubmit = async () => {
     if (newPassword !== confirmPassword) {
+      console.log("passport not match")
       notifyError("Passwords don't match");
       return;
     }
-
+   console.log("saknas")
     setLoading(true);
     try {
       console.log("Attempting password reset with token:", resetToken);
@@ -170,13 +171,13 @@ const ResetPassword = () => {
                 <InputArea
                   register={register}
                   name="newPassword"
-                  rules={{
-                    required: "Password is required",
-                    minLength: {
-                      value: 8,
-                      message: "Password must be at least 8 characters",
-                    },
-                  }}
+                  // rules={{
+                  //   required: "Password is required",
+                  //   minLength: {
+                  //     value: 8,
+                  //     message: "Password must be at least 8 characters",
+                  //   },
+                  // }}
                   handleChange={handlePasswordChange}
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your new password"
@@ -210,11 +211,11 @@ const ResetPassword = () => {
                 <InputArea
                   register={register}
                   name="confirmPassword"
-                  rules={{
-                    required: "Please confirm your password",
-                    validate: (value) =>
-                      value === watch("newPassword") || "Passwords don't match",
-                  }}
+                  // rules={{
+                  //   required: "Please confirm your password",
+                  //   validate: (value) =>
+                  //     value === watch("newPassword") || "Passwords don't match",
+                  // }}
                   handleChange={handleConfirmPasswordChange}
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm your new password"

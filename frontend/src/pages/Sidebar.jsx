@@ -33,8 +33,14 @@ const Sidebar = () => {
       description: "Plan your finances"
     },
     { 
-      path: "/about", 
-      name: "About", 
+      path: "/goal", 
+      name: "Goal", 
+      icon: FaChartPie,
+      description: "Plan your goals"
+    },
+    { 
+      path: "/blog", 
+      name: "Blog", 
       icon: HiInformationCircle,
       description: "Learn more about us"
     },
